@@ -43,18 +43,19 @@ data_source:
 
 opensearchDashboards:
   branding:
-    applicationTitle: "Malcolm Dashboards"
+    applicationTitle: "Oculos Dashboards"
     useExpandedHeader: false
     logo:
-      defaultUrl: "/assets/img/Malcolm_outline_banner_dark.png"
-      darkModeUrl: "/assets/img/Malcolm_outline_banner_dark.png"
+      defaultUrl: "/assets/img/Talixman_logo.png"
+      darkModeUrl: "/assets/img/Talixman_logo.png"
     mark:
-      defaultUrl: "/assets/img/icon.png"
-      darkModeUrl: "/assets/img/icon_dark.png"
+      defaultUrl: "/assets/img/X.png"
+      darkModeUrl: "/assets/img/X.png"
     loadingLogo:
-      defaultUrl: "/assets/img/icon.png"
-      darkModeUrl: "/assets/img/icon_dark.png"
-    faviconUrl: "/assets/img/favicon32.png"
+      defaultUrl: "/assets/img/Talixman_logo.png"
+      darkModeUrl: "/assets/img/Talixman_logo.png"
+    faviconUrl: "/assets/img/X.png"
+
 
 map:
   regionmap:
