@@ -316,10 +316,11 @@ ADD --chmod=644 nginx/supervisord.conf /etc/
 ADD --chmod=644 docs/images/favicon/*.png /usr/share/nginx/html/assets/img/
 ADD --chmod=644 docs/images/icon/*.png /usr/share/nginx/html/assets/img/
 ADD --chmod=644 docs/images/icon/*.svg /usr/share/nginx/html/assets/img/
-ADD --chmod=644 docs/images/icon/favicon.ico /usr/share/nginx/html/assets/favicon.ico
-ADD --chmod=644 docs/images/icon/favicon.ico /usr/share/nginx/html/favicon.ico
+ADD --chmod=644 docs/images/icon/X.ico /usr/share/nginx/html/assets/X.ico
+ADD --chmod=644 docs/images/icon/X.ico /usr/share/nginx/html/X.ico
 ADD --chmod=644 docs/images/logo/*.png /usr/share/nginx/html/assets/img/
 ADD --chmod=644 docs/images/logo/*.svg /usr/share/nginx/html/assets/img/
+
 
 VOLUME ["/etc/nginx/certs", "/etc/nginx/dhparam"]
 
