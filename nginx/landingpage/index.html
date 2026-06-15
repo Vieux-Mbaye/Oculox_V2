@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr" data-theme="light">
     <!-- Copyright (c) 2026 Battelle Energy Alliance, LLC.  All rights reserved. -->
     <head>
         <base target="_blank">
@@ -7,121 +7,401 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="description" content="" />
         <meta name="author" content="" />
-        <title>Malcolm</title>
-        <!-- Favicon-->
-        <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
-        <!-- Bootstrap icons-->
+        <title>Talixman OT Security</title>
+        <link rel="icon" type="image/x-icon" href="assets/X.ico" />
         <link href="css/bootstrap-icons.css" rel="stylesheet" type="text/css" />
-        <!-- Google fonts-->
-        <link href="css/google-fonts.css" rel="stylesheet" type="text/css" />
-        <!-- Core theme CSS (includes Bootstrap)-->
-        <link href="css/styles.css" rel="stylesheet" />
+
+        <style>
+            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+            /* ===== THEMES ===== */
+            :root, [data-theme="light"] {
+                --bg:           #ffffff;
+                --bg-section:   #f4f6f9;
+                --bg-card:      #ffffff;
+                --text:         #1e2a38;
+                --text-muted:   #6c757d;
+                --border:       #dee2e6;
+                --primary:      #2d6bcf;
+                --shadow-sm:    0 2px 8px rgba(0,0,0,0.07);
+                --shadow-md:    0 6px 24px rgba(0,0,0,0.13);
+                --toggle-bg:    #e2e8f0;
+                --toggle-knob:  #ffffff;
+                --toggle-icon:  "☀️";
+            }
+
+            [data-theme="dark"] {
+                --bg:           #0f1523;
+                --bg-section:   #151d2e;
+                --bg-card:      #1c2540;
+                --text:         #e2e8f0;
+                --text-muted:   #94a3b8;
+                --border:       #2d3a55;
+                --primary:      #60a5fa;
+                --shadow-sm:    0 2px 8px rgba(0,0,0,0.3);
+                --shadow-md:    0 6px 24px rgba(0,0,0,0.5);
+                --toggle-bg:    #2d3a55;
+                --toggle-knob:  #60a5fa;
+            }
+
+            /* ===== BASE ===== */
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: var(--bg);
+                color: var(--text);
+                line-height: 1.6;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+
+            a { text-decoration: none; color: inherit; }
+
+            /* ===== NAVBAR ===== */
+            .navbar {
+                background-color: var(--bg);
+                border-bottom: 1px solid var(--border);
+                padding: 0.75rem 1.5rem;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                box-shadow: var(--shadow-sm);
+                transition: background-color 0.3s ease, border-color 0.3s ease;
+            }
+
+            .navbar-inner {
+                max-width: 1200px;
+                margin: 0 auto;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .navbar-brand img {
+                height: 36px;
+                object-fit: contain;
+            }
+
+            /* ===== DARK MODE TOGGLE ===== */
+            .theme-toggle {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .theme-toggle-label {
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                font-weight: 500;
+            }
+
+            .toggle-switch {
+                position: relative;
+                width: 48px;
+                height: 26px;
+            }
+
+            .toggle-switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+                position: absolute;
+            }
+
+            .toggle-slider {
+                position: absolute;
+                inset: 0;
+                background-color: var(--toggle-bg);
+                border-radius: 26px;
+                transition: 0.3s;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                padding: 3px;
+            }
+
+            .toggle-slider::before {
+                content: '';
+                width: 20px;
+                height: 20px;
+                background-color: var(--toggle-knob);
+                border-radius: 50%;
+                transition: 0.3s;
+                flex-shrink: 0;
+            }
+
+            input:checked + .toggle-slider::before {
+                transform: translateX(22px);
+            }
+
+            .toggle-icon {
+                font-size: 1rem;
+                line-height: 1;
+            }
+
+            /* ===== MASTHEAD ===== */
+            .masthead {
+                background-color: var(--bg) !important;
+                background-image: none !important;
+                padding: 3rem 1.5rem 2.5rem;
+                text-align: center;
+                border-bottom: 1px solid var(--border);
+                transition: background-color 0.3s ease, border-color 0.3s ease;
+            }
+
+            .masthead img {
+                max-width: 320px;
+                width: 100%;
+                height: auto;
+                object-fit: contain;
+                display: block;
+                margin: 0 auto;
+                /* invert logo in dark mode for visibility */
+            }
+
+            [data-theme="dark"] .masthead img {
+                filter: brightness(0) invert(1);
+            }
+
+            /* ===== SECTION ===== */
+            .section-title {
+                text-align: center;
+                padding: 2.5rem 1rem 0.5rem;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: var(--text-muted);
+            }
+
+            .features-section {
+                background-color: var(--bg-section);
+                padding: 1.5rem 1.5rem 3rem;
+                transition: background-color 0.3s ease;
+            }
+
+            .features-grid {
+                max-width: 1100px;
+                margin: 0 auto;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 1.5rem;
+                padding-top: 1.5rem;
+            }
+
+            /* ===== CARDS ===== */
+            .feature-card {
+                background-color: var(--bg-card);
+                border-radius: 12px;
+                padding: 2rem 1.5rem;
+                text-align: center;
+                box-shadow: var(--shadow-sm);
+                border: 1px solid var(--border);
+                transition: transform 0.25s ease, box-shadow 0.25s ease,
+                            background-color 0.3s ease, border-color 0.3s ease;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .feature-card:hover {
+                transform: translateY(-5px);
+                box-shadow: var(--shadow-md);
+            }
+
+            .feature-card a {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+                width: 100%;
+            }
+
+            .feature-icon {
+                width: 60px;
+                height: 60px;
+                object-fit: contain;
+                display: block;
+            }
+
+            /* Bootstrap icon via CSS background-image fallback */
+            .feature-icon-bi {
+                width: 60px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 2.8rem;
+                color: var(--primary);
+                line-height: 1;
+                transition: color 0.3s ease;
+            }
+
+            .feature-card h3 {
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--primary);
+                margin: 0;
+                transition: color 0.3s ease;
+            }
+
+            .feature-card p {
+                font-size: 0.875rem;
+                color: var(--text-muted);
+                margin: 0;
+                line-height: 1.55;
+                transition: color 0.3s ease;
+            }
+
+            /* ===== SVG ICONS INLINE (fallback for bi icons) ===== */
+            .icon-upload {
+                display: block;
+                width: 56px;
+                height: 56px;
+                color: var(--primary);
+            }
+            .icon-person {
+                display: block;
+                width: 56px;
+                height: 56px;
+                color: var(--primary);
+            }
+
+            /* ===== FOOTER ===== */
+            .footer {
+                background-color: var(--bg);
+                border-top: 1px solid var(--border);
+                padding: 1.5rem;
+                text-align: center;
+                transition: background-color 0.3s ease, border-color 0.3s ease;
+            }
+
+            .footer p {
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                margin: 0;
+            }
+
+            /* ===== RESPONSIVE ===== */
+            @media (max-width: 576px) {
+                .masthead img { max-width: 220px; }
+                .features-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
+                .feature-card { padding: 1.25rem 1rem; }
+            }
+        </style>
     </head>
     <body>
-        <!-- Navigation-->
-        <nav class="navbar navbar-light bg-light static-top">
-            <div class="container"/>
+
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="navbar-inner">
+                <a class="navbar-brand" href="#" target="_self">
+                    <img src="assets/img/Talixman_logo.png" alt="Talixman" />
+                </a>
+                <label class="theme-toggle" for="themeToggle" title="Changer de thème">
+                    <span class="toggle-icon" id="themeIcon">☀️</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="themeToggle" />
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span class="toggle-icon">🌙</span>
+                </label>
+            </div>
         </nav>
-        <!-- Masthead-->
+
+        <!-- Masthead -->
         <header class="masthead">
-            <div class="container"/>
+            <img src="assets/img/Talixman_logo.png" alt="Talixman Cybersecurity Services" />
         </header>
-        <!-- Icons Grid-->
-        <section class="features-icons bg-light text-center">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-0 mb-lg-3">
-                            <a href="MALCOLM_DASHBOARDS_URL_REPLACER"><img style='max-width: 35%; height: auto; object-fit: contain' src="assets/img/MALCOLM_DASHBOARDS_ICON_REPLACER"/>
-                            <h3>MALCOLM_DASHBOARDS_NAME_REPLACER</h3></a>
-                            <p class="lead mb-0">Visualize traffic or track down security concerns with dozens of <a href="/readme/docs/dashboards.html#PrebuiltVisualizations">pre-built dashboards</a>, or <a href="/readme/docs/dashboards.html#BuildDashboard">create your own</a></p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-5 mb-lg-3">
-                            <a href="/arkime/"><img style='width: 19%; height: 19%; object-fit: contain' src="assets/img/arkime.svg"/>
-                            <h3>Arkime</h3></a>
-                            <p class="lead mb-0">Delve into <a href="/readme/docs/arkime.html">session details</a> including full packet payloads</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-0 mb-lg-3">
-                            <a href="MALCOLM_NETBOX_URL_REPLACER"><img style='max-width: 35%; height: auto; object-fit: contain' src="assets/img/netbox_icon.svg"/>
-                            <h3>MALCOLM_NETBOX_TITLE_REPLACER</h3></a>
-                            <p class="lead mb-0">MALCOLM_NETBOX_DESC_REPLACER</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-0 mb-lg-3">
-                            <a href="/arkime/cyberchef.html"><img style='max-width: 35%; height: auto; object-fit: contain' src="assets/img/cyberchef.svg"/>
-                            <h3>CyberChef</h3></a>
-                            <p class="lead mb-0">Slice and dice data with this web app for encryption, encoding, compression and data analysis</p>
-                        </div>
-                    </div>
+
+        <!-- Features -->
+        <section class="features-section">
+            <p class="section-title">Outils disponibles</p>
+            <div class="features-grid">
+
+                <div class="feature-card">
+                    <a href="MALCOLM_DASHBOARDS_URL_REPLACER">
+                        <img class="feature-icon" src="assets/img/MALCOLM_DASHBOARDS_ICON_REPLACER" alt="Dashboards" />
+                        <h3>Dashboards</h3>
+                    </a>
+                    <p>Visualisez le trafic ou identifiez les problèmes de sécurité grâce à des dizaines de tableaux de bord prédéfinis, ou créez les vôtres.</p>
                 </div>
-                <div class="row">
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-5 mb-lg-0 mb-lg-3">
-                            <a href="/readme/"><div class="features-icons-icon d-flex"><i class="bi-journal-richtext m-auto text-primary"></i></div>
-                            <h3>Documentation</h3></a>
-                            <p class="lead mb-0">Read the Malcolm user guide</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-5 mb-lg-0 mb-lg-3">
-                            <a href="/upload/"><div class="features-icons-icon d-flex"><i class="bi-upload m-auto text-primary"></i></div>
-                            <h3>Artifact Upload</h3></a>
-                            <p class="lead mb-0"><a href="/readme/docs/upload.html">Upload</a> previously-captured PCAP files or archived Zeek logs for analysis</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-5 mb-lg-0 mb-lg-3">
-                            <a href="MALCOLM_AUTH_URL_REPLACER"><div class="features-icons-icon d-flex"><i class="bi-person m-auto text-primary"></i></div>
-                            <h3>MALCOLM_AUTH_TITLE_REPLACER</h3></a>
-                            <p class="lead mb-0">MALCOLM_AUTH_DESC_REPLACER</p>
-                        </div>
-                    </div>
-                    <div class="col-lg-3">
-                        <div class="features-icons-item mx-auto mb-0 mb-lg-3">
-                            <a href="/extracted-files/"><div class="features-icons-icon d-flex"><i class="bi-archive m-auto text-primary"></i></div>
-                            <h3>Extracted Files</h3></a>
-                            <p class="lead mb-0">Browse the preserved <a href="/readme/docs/file-scanning.html#ZeekFileExtractionUI">extracted files</a> carved and scanned by Malcolm</p>
-                        </div>
-                    </div>
+
+                <div class="feature-card">
+                    <a href="/arkime/">
+                        <img class="feature-icon" src="assets/img/Arkime.png" alt="Arkime"/>
+                        <h3>Examiner une Session</h3>
+                    </a>
+                    <p>Examinez en détail la session, y compris la charge utile complète des paquets.</p>
                 </div>
+
+                <div class="feature-card">
+                    <a href="MALCOLM_NETBOX_URL_REPLACER">
+                        <img class="feature-icon" src="assets/img/netbox_icon.svg" alt="NetBox" />
+                        <h3>Inventaire des actifs</h3>
+                    </a>
+                    <p>Centralisez et documentez votre infrastructure réseau et gérez vos actifs pour un suivi précis des équipements analysés.</p>
+                </div>
+
+                <div class="feature-card">
+                    <a href="/arkime/cyberchef.html">
+                        <img class="feature-icon" src="assets/img/cyberchef.svg" alt="CyberChef" />
+                        <h3>Convertir des Données</h3>
+                    </a>
+                    <p>Analysez et manipulez vos données grâce à cette application web dédiée au chiffrement, à l'encodage, à la compression et à l'analyse de données.</p>
+                </div>
+
+                <!-- File Uploader — SVG inline pour éviter la dépendance Bootstrap Icons -->
+                <div class="feature-card">
+                    <a href="/upload/">
+                        <svg class="icon-upload" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                        </svg>
+                        <h3>File Uploader</h3>
+                    </a>
+                    <p>Téléversez des fichiers PCAP précédemment capturés ou des journaux Zeek archivés pour une analyse.</p>
+                </div>
+
+                <!-- User Management — SVG inline -->
+                <div class="feature-card">
+                    <a href="MALCOLM_AUTH_URL_REPLACER">
+                        <svg class="icon-person" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+                        </svg>
+                        <h3>User Management</h3>
+                    </a>
+                    <p>L'administrateur peut gérer les utilisateurs de cette plateforme : créer, modifier ou supprimer des comptes.</p>
+                </div>
+
             </div>
         </section>
-        <!-- Footer-->
-        <footer class="footer bg-light">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-6 h-100 text-center text-lg-start my-auto">
-                        <p class="text-muted small mb-4 mb-lg-0">
-                        <a href="https://github.com/idaholab/Malcolm/releases">Malcolm MALCOLM_VERSION_REPLACER</a> &copy; 2026 Battelle Energy Alliance, LLC.</p>
-                    </div>
-                    <div class="col-lg-6 h-100 text-center text-lg-end my-auto">
-                        <ul class="list-inline mb-0">
-                            <li class="list-inline-item">
-                                <a href="/mapi/ready"><i class="bi-activity fs-3" title="Service Readiness"></i></a>
-                            </li>
-                            <li class="list-inline-item">
-                                <a href="/mapi/ingest-stats"><i class="bi-database-up fs-3" title="Ingest Statistics"></i></a>
-                            </li>
-                            <li class="list-inline-item">
-                                <a href="/mapi/"><i class="bi-plugin fs-3" title="REST API"></i></a>
-                            </li>
-                            <li class="list-inline-item">
-                                <a href="https://github.com/idaholab/Malcolm"><i class="bi-github fs-3" title="GitHub"></i></a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 Talixman Group - Cybersecurity Services</p>
         </footer>
-        <!-- Bootstrap core JS-->
+
         <script src="js/bootstrap.bundle.min.js"></script>
-        <!-- Core theme JS-->
         <script src="js/scripts.js"></script>
+        <script>
+            // ===== DARK / LIGHT MODE =====
+            const toggle = document.getElementById('themeToggle');
+            const html   = document.documentElement;
+
+            // Restore saved preference
+            const saved = localStorage.getItem('talixman-theme');
+            if (saved === 'dark') {
+                html.setAttribute('data-theme', 'dark');
+                toggle.checked = true;
+            }
+
+            toggle.addEventListener('change', () => {
+                const isDark = toggle.checked;
+                html.setAttribute('data-theme', isDark ? 'dark' : 'light');
+                localStorage.setItem('talixman-theme', isDark ? 'dark' : 'light');
+            });
+        </script>
     </body>
-    <!-- See, Here I'm Now By Myself, Uh, Talking To Myself. That's, That's Chaos Theory. -->
 </html>
