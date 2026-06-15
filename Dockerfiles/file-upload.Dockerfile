@@ -55,7 +55,7 @@ ENV FILEPOND_SERVER_BRANCH=$FILEPOND_SERVER_BRANCH
 ARG STALE_UPLOAD_DELETE_MIN=360
 ENV STALE_UPLOAD_DELETE_MIN=$STALE_UPLOAD_DELETE_MIN
 
-ENV SUPERCRONIC_VERSION="0.2.46"
+ENV SUPERCRONIC_VERSION="0.2.43"
 ENV SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/v$SUPERCRONIC_VERSION/supercronic-linux-"
 ENV SUPERCRONIC_CRONTAB="/etc/crontab"
 
@@ -87,7 +87,6 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
       rsync \
       tini \
       vim-tiny && \
-    rm -f /etc/ssh/ssh_host_* && \
     curl -fsSL -o /usr/local/bin/supercronic "${SUPERCRONIC_URL}${BINARCH}" && \
       chmod +x /usr/local/bin/supercronic && \
     mkdir -p /var/www/upload/server/php \
@@ -106,7 +105,8 @@ ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
 ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
 ADD --chmod=755 file-upload/docker-entrypoint.sh /docker-entrypoint.sh
 ADD --chmod=755 container-health-scripts/upload.sh /usr/local/bin/container_health.sh
-ADD --chmod=644 docs/images/logo/Malcolm_banner.png /var/www/upload/Malcolm_banner.png
+ADD --chmod=644 docs/images/icon/Talixman_logo.png /var/www/upload/Talixman_logo.png
+ADD --chmod=644 docs/images/icon/X.ico /var/www/upload/X.ico
 ADD --chmod=644 file-upload/nginx/sites-available/default /etc/nginx/sites-available/default
 ADD --chmod=644 file-upload/php/php.ini /etc/php/$PHP_VERSION/fpm/php.ini
 ADD --chmod=644 file-upload/php/*.php /var/www/upload/server/php/
@@ -133,7 +133,7 @@ RUN mkdir -p /run/php \
             /var/www/upload/server/php/chroot && \
   echo "Put your files into /files. Don't use subdirectories." \
       >/var/www/upload/server/php/chroot/README.txt && \
-  rm -rf /var/lib/apt/lists/* /var/cache/* /tmp/* /var/tmp/* /var/log/journal
+  rm -rf /var/lib/apt/lists/* /var/cache/* /tmp/* /var/tmp/*
 
 # see PUSER_CHOWN comment above
 VOLUME [ "/var/www/upload/server/php/chroot/files" ]
