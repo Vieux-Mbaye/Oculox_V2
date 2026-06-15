@@ -212,8 +212,6 @@ services:
     - ./config/logstash.env
     depends_on:
     - opensearch
-    ports:
-    - 127.0.0.1:5044:5044
     volumes:
     - logstash-persistent-queue:/logstash-persistent-queue
     - type: bind
@@ -317,8 +315,6 @@ services:
     - ./config/beats-common.env
     - ./config/netbox-common.env
     - ./config/filebeat.env
-    ports:
-    - 127.0.0.1:5045:5045
     volumes:
     - nginx-log-path:/nginx:ro
     - filebeat-logs-registry:/usr/share/filebeat-logs/data
@@ -1155,8 +1151,6 @@ services:
     - ./config/ssl.env
     - ./config/auth.env
     - ./config/upload-common.env
-    ports:
-    - 127.0.0.1:8022:22
     volumes:
     - type: bind
       bind:
@@ -1582,8 +1576,7 @@ services:
     - opensearch
     - upload
     ports:
-    - 0.0.0.0:443:443
-    - 127.0.0.1:9200:9200
+    - 0.0.0.0:443:443/tcp
     volumes:
     - nginx-log-path:/var/log/nginx
     - type: bind
@@ -1650,3 +1643,18 @@ volumes:
 networks:
   default:
     external: false
+x-malcolm:
+  aux-forwarders:
+    aide: false
+    auditlog: false
+    cpu: false
+    df: false
+    disk: false
+    kmsg: false
+    mem: false
+    network: false
+    systemd: false
+    thermal: false
+  prune:
+    pcap: false
+    logs: false
