@@ -7,7 +7,7 @@ if [[ "${NGINX_AUTH_MODE:-basic}" =~ ^(true|basic|keycloak|keycloak_remote)$ ]];
 ; HTAdmin config file (dynamically generated $(date "+%Y-%m-%d_%H:%M:%S"))
 
 [application]
-app_title = ${MALCOLM_HTADMIN_TITLE:-Malcolm User Management}
+app_title = ${MALCOLM_HTADMIN_TITLE:- User Management}
 
 secure_path  = ./auth/htpasswd
 metadata_path  = ./config/metadata
