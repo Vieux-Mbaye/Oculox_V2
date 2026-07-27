@@ -1,0 +1,4 @@
+# Surcharges locales appliquées au docker-compose.yml d'origine.
+# Ce fichier est volontairement neutre au début de la phase 2.
+services: {}
+

@@ -1,0 +1,18 @@
+# Variables locales et secrets
+config/*.env
+!config/*.env.example
+config/certs/
+
+# Résultats générés
+tests/results/
+monitoring/data/
+monitoring/exports/
+
+# Captures et archives de benchmark
+*.pcap
+*.pcapng
+*.csv
+*.tar
+*.tar.gz
+*.zip
+
