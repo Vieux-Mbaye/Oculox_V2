@@ -7,9 +7,9 @@
 #   - are not in processed/ or current/ or upload/ or extract_files/ or live/ (-prune)
 #   - are archive files (or, application/x-ms-evtx, which are also handled here as we accept
 #     Windows event log .evtx files which may be compressed and we don't know what's inside
-#     the archvies prior to this)
+#     the archives prior to this)
 #   - are not in use (fuser -s)
-# 1. move file to processed/ (preserving original subdirectory heirarchy, if any)
+# 1. move file to processed/ (preserving original subdirectory hierarchy, if any)
 # 2. calculate tags based on splitting the file path and filename (splitting on
 #    on ",-/_.")
 
@@ -101,13 +101,13 @@ if mkdir $LOCKDIR; then
         fi
 
         mkdir -p "$DESTDIR"
-        mkdir -p "$DESTDIR_EXTRACTED"
 
         if [[ "$FILEMIME" == "application/x-ms-evtx" ]]; then
           # special case for Windows event log files that are uploaded uncompressed
+          mkdir -p "$DESTDIR_EXTRACTED"
           mv "$FILENAME" "$DESTDIR_EXTRACTED"/"$(basename "$DESTNAME")"
         else
-          # extract archive to DESTDIR_EXTRACTED
+          # extract archive to DESTDIR_EXTRACTED (dir will be created by safe-extract.py)
           mv "$FILENAME" "$DESTNAME"
           /usr/local/bin/safe-extract.py "$DESTNAME" "$DESTDIR_EXTRACTED"
         fi

@@ -1467,32 +1467,32 @@ def MalcolmAuthFilesExist(configDir=None, run_profile=PROFILE_MALCOLM, auth_meth
     configDirToCheck = (
         configDir if configDir is not None and os.path.isdir(configDir) else os.path.join(MalcolmPath, 'config')
     )
-    return (
-        (
-            (run_profile == PROFILE_HEDGEHOG)
-            or (
-                AuthFileCheck(
-                    os.path.join(MalcolmPath, os.path.join('nginx', 'htpasswd')),
-                    allowEmpty=(auth_method == 'no_authentication'),
-                )
-                and AuthFileCheck(
-                    os.path.join(MalcolmPath, os.path.join('nginx', 'nginx_ldap.conf')),
-                    allowEmpty=(auth_method != 'ldap'),
-                )
-                and AuthFileCheck(
-                    os.path.join(MalcolmPath, os.path.join('nginx', os.path.join('certs', 'cert.pem'))), allowEmpty=True
-                )
-                and AuthFileCheck(
-                    os.path.join(MalcolmPath, os.path.join('nginx', os.path.join('certs', 'key.pem'))), allowEmpty=True
-                )
-                and AuthFileCheck(os.path.join(configDirToCheck, 'netbox-secret.env'))
-                and AuthFileCheck(os.path.join(configDirToCheck, 'postgres.env'))
-                and AuthFileCheck(os.path.join(configDirToCheck, 'auth.env'))
-            )
-        )
-        and AuthFileCheck(os.path.join(configDirToCheck, 'valkey.env'))
-        and AuthFileCheck(os.path.join(MalcolmPath, '.opensearch.primary.curlrc'))
-    )
+
+    missing = []
+
+    if run_profile != PROFILE_HEDGEHOG:
+        checks = [
+            (os.path.join(MalcolmPath, 'nginx', 'htpasswd'), auth_method == 'no_authentication'),
+            (os.path.join(MalcolmPath, 'nginx', 'nginx_ldap.conf'), auth_method != 'ldap'),
+            (os.path.join(MalcolmPath, 'nginx', 'certs', 'cert.pem'), True),
+            (os.path.join(MalcolmPath, 'nginx', 'certs', 'key.pem'), True),
+            (os.path.join(configDirToCheck, 'netbox-secret.env'), False),
+            (os.path.join(configDirToCheck, 'postgres.env'), False),
+            (os.path.join(configDirToCheck, 'auth.env'), False),
+        ]
+        for path, allowEmpty in checks:
+            if not AuthFileCheck(path, allowEmpty=allowEmpty):
+                missing.append(path)
+
+    # checked regardless of profile
+    for path in (
+        os.path.join(configDirToCheck, 'valkey.env'),
+        os.path.join(MalcolmPath, '.opensearch.primary.curlrc'),
+    ):
+        if not AuthFileCheck(path):
+            missing.append(path)
+
+    return missing
 
 
 ###################################################################################################
@@ -1830,7 +1830,7 @@ def ProcessLogLine(line, debug=False):
                 timeStr = f"{messageTimeMatch[0]} "
 
             if ('job.schedule' in outputJson) and ('job.position' in outputJson) and ('job.command' in outputJson):
-                # this is a status line line from supercronic, let's format and clean it up so it fits in better with the rest of the logs
+                # this is a status line from supercronic, let's format and clean it up so it fits in better with the rest of the logs
 
                 # remove some clutter for the display
                 for noisyKey in ['level', 'channel', 'iteration', 'job.position', 'job.schedule']:
@@ -1855,7 +1855,7 @@ def ProcessLogLine(line, debug=False):
                     )
 
             elif 'dashboards' in serviceStr:
-                # this is an line line from dashboards, let's clean it up a bit: remove some clutter for the display
+                # this is a line from dashboards, let's clean it up a bit: remove some clutter for the display
                 for noisyKey in ['type', 'tags', 'pid', 'method', 'prevState', 'prevMsg']:
                     outputJson.pop(noisyKey, None)
 
@@ -1863,7 +1863,7 @@ def ProcessLogLine(line, debug=False):
                 return f"{serviceStr}{Style.RESET_ALL if coloramaImported else ''} {timeStr}{json.dumps(outputJson)}"
 
             elif 'filebeat' in serviceStr:
-                # this is an line line from filebeat, let's clean it up a bit: remove some clutter for the display
+                # this is a line from filebeat, let's clean it up a bit: remove some clutter for the display
                 for noisyKey in [
                     'ecs.version',
                     'harvester_id',

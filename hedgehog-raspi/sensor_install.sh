@@ -10,10 +10,11 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+set -eo pipefail
+
 IMAGE_NAME=hedgehog
 IMAGE_PUBLISHER=idaholab
 IMAGE_VERSION=1.0.0
-IMAGE_DISTRIBUTION=trixie
 
 SENSOR_USER=sensor
 SENSOR_GROUP=sensor
@@ -107,8 +108,6 @@ clean_up() {
     update-locale LANG=en_US.UTF-8 LANGUAGE=en.UTF-8
     sed -i -e 's/CHARMAP=.*/CHARMAP="UTF-8"/' -e 's/CODESET=.*/CODESET="Lat15"/' /etc/default/console-setup
     dpkg-reconfigure console-setup
-
-    umount -A -f /dev/pts /run /dev /proc /sys
 }
 
 create_user() {
@@ -128,34 +127,63 @@ create_user() {
 }
 
 install_deps() {
-
     local deps=''
 
     rm -f "${DEPS_DIR}/"{desktopmanager,live,virtualguest}.list.chroot
     rm -f "${DEPS_DIR}/grub.list.binary"
+
+    local file
     for file in "${DEPS_DIR}/"*.chroot; do
         sed -i '$a\' "$file"
-        deps+=$(tr '\n' ' ' < "$file")
+        deps+="$(tr '\n' ' ' < "$file")"
     done
 
-    # Remove packages not relevant to RPI
-    # Rar is excluded because Debian doesn't have an ARM package
-    # htpdate removed because repo version doesn't support https
-    # aide is removed as we're not applying the same hardening requirements ot the rpi image
-    declare -a graphical_deps=( aide aide-common efibootmgr fonts-dejavu fuseext2 fusefat fuseiso gdb )
-    graphical_deps+=( gparted gdebi  google-perftools gvfs gvfs-daemons gvfs-fuse ghostscript ghostscript-x )
-    graphical_deps+=( hfsplus hfsprogs htpdate libgtk2.0-bin menu pmount rar )
-    graphical_deps+=( ssh-askpass udisks2 upower user-setup xbitmaps zenity zenity-common )
-    graphical_deps+=( libsmbclient samba-common samba-common-bin samba-dsdb-modules samba-libs smbclient )
+    # Remove packages not relevant to Raspberry Pi images.
+    # rar is excluded because Debian does not provide an ARM package.
+    # htpdate is excluded because the repository version does not support HTTPS.
+    # aide is excluded because the same hardening requirements are not applied.
+    local -a excluded_deps=(
+        aide aide-common efibootmgr fonts-dejavu fuseext2 fusefat fuseiso gdb
+        gparted gdebi google-perftools gvfs gvfs-daemons gvfs-fuse
+        ghostscript ghostscript-x hfsplus hfsprogs htpdate libgtk2.0-bin
+        menu pmount rar ssh-askpass udisks2 upower user-setup xbitmaps
+        zenity zenity-common libsmbclient samba-common samba-common-bin
+        samba-dsdb-modules samba-libs smbclient
+    )
 
-    deps=$(echo ${deps} ${graphical_deps[@]} | tr ' ' '\n' | sort | uniq -u | tr '\n' ' ')
+    local -A excluded=()
+    local -A seen=()
+    local package
+
+    for package in "${excluded_deps[@]}"; do
+        excluded["$package"]=1
+    done
+
+    local -a filtered_deps=()
+    for package in $deps; do
+        if [[ ! -v "excluded[$package]" && ! -v "seen[$package]" ]]; then
+            filtered_deps+=("$package")
+            seen["$package"]=1
+        fi
+    done
 
     apt-get update
-    # Hedgehog conf files are copied into env before this runs; keep those config files by default
-    apt-get -o Dpkg::Options::="--force-confold" install -q $deps -y --no-install-suggests
+
+    # Hedgehog configuration files are copied into the environment before
+    # this runs; preserve those files by default.
+    apt-get \
+        -o Dpkg::Options::="--force-confold" \
+        install \
+        -q \
+        -y \
+        --no-install-suggests \
+        "${filtered_deps[@]}"
+
     apt-get clean
 
-    dpkg -s docker-ce >/dev/null 2>&1 && usermod -a -G docker "$SENSOR_USER"
+    if dpkg -s docker-ce >/dev/null 2>&1; then
+        usermod -a -G docker "$SENSOR_USER"
+    fi
 }
 
 install_files() {
@@ -271,14 +299,6 @@ install_hooks() {
 ################################
 ########## Main ################
 ################################
-
-# Make sure necessary virtual filesystems available in chroot
-mount -t proc /proc /proc
-mount -t devtmpfs /dev /dev
-mount -t devpts /dev/pts /dev/pts
-mount -t sysfs /sys /sys
-mount -t tmpfs /run /run
-
 
 [[ -f "$SHARED_DIR/environment.chroot" ]] && \
   . "$SHARED_DIR/environment.chroot"

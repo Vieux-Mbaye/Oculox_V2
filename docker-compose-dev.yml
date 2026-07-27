@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfiles/opensearch.Dockerfile
-    image: ghcr.io/idaholab/malcolm/opensearch:26.06.0
+    image: ghcr.io/idaholab/malcolm/opensearch:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -74,11 +74,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 180s
+    stop_grace_period: 3m
   dashboards-helper:
     build:
       context: .
       dockerfile: Dockerfiles/dashboards-helper.Dockerfile
-    image: ghcr.io/idaholab/malcolm/dashboards-helper:26.06.0
+    image: ghcr.io/idaholab/malcolm/dashboards-helper:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -127,11 +128,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 30s
+    stop_grace_period: 20s
   dashboards:
     build:
       context: .
       dockerfile: Dockerfiles/dashboards.Dockerfile
-    image: ghcr.io/idaholab/malcolm/dashboards:26.06.0
+    image: ghcr.io/idaholab/malcolm/dashboards:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -171,11 +173,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 210s
+    stop_grace_period: 20s
   logstash:
     build:
       context: .
       dockerfile: Dockerfiles/logstash.Dockerfile
-    image: ghcr.io/idaholab/malcolm/logstash-oss:26.06.0
+    image: ghcr.io/idaholab/malcolm/logstash-oss:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -286,11 +289,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 600s
+    stop_grace_period: 2m
   filebeat:
     build:
       context: .
       dockerfile: Dockerfiles/filebeat.Dockerfile
-    image: ghcr.io/idaholab/malcolm/filebeat-oss:26.06.0
+    image: ghcr.io/idaholab/malcolm/filebeat-oss:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -374,11 +378,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 30s
   arkime:
     build:
       context: .
       dockerfile: Dockerfiles/arkime.Dockerfile
-    image: ghcr.io/idaholab/malcolm/arkime:26.06.0
+    image: ghcr.io/idaholab/malcolm/arkime:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -461,11 +466,12 @@ services:
       timeout: 30s
       retries: 3
       start_period: 210s
+    stop_grace_period: 30s
   arkime-live:
     build:
       context: .
       dockerfile: Dockerfiles/arkime.Dockerfile
-    image: ghcr.io/idaholab/malcolm/arkime:26.06.0
+    image: ghcr.io/idaholab/malcolm/arkime:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -556,11 +562,12 @@ services:
       timeout: 30s
       retries: 3
       start_period: 210s
+    stop_grace_period: 30s
   zeek:
     build:
       context: .
       dockerfile: Dockerfiles/zeek.Dockerfile
-    image: ghcr.io/idaholab/malcolm/zeek:26.06.0
+    image: ghcr.io/idaholab/malcolm/zeek:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -625,11 +632,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 30s
   zeek-live:
     build:
       context: .
       dockerfile: Dockerfiles/zeek.Dockerfile
-    image: ghcr.io/idaholab/malcolm/zeek:26.06.0
+    image: ghcr.io/idaholab/malcolm/zeek:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -694,11 +702,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 30s
   suricata:
     build:
       context: .
       dockerfile: Dockerfiles/suricata.Dockerfile
-    image: ghcr.io/idaholab/malcolm/suricata:26.06.0
+    image: ghcr.io/idaholab/malcolm/suricata:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -756,11 +765,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 120s
+    stop_grace_period: 30s
   suricata-live:
     build:
       context: .
       dockerfile: Dockerfiles/suricata.Dockerfile
-    image: ghcr.io/idaholab/malcolm/suricata:26.06.0
+    image: ghcr.io/idaholab/malcolm/suricata:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -822,11 +832,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 120s
+    stop_grace_period: 30s
   filescan:
     build:
       context: .
       dockerfile: Dockerfiles/filescan.Dockerfile
-    image: ghcr.io/idaholab/malcolm/filescan:26.06.0
+    image: ghcr.io/idaholab/malcolm/filescan:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -880,11 +891,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   strelka-backend:
     build:
       context: .
       dockerfile: Dockerfiles/strelka-backend.Dockerfile
-    image: ghcr.io/idaholab/malcolm/strelka-backend:26.06.0
+    image: ghcr.io/idaholab/malcolm/strelka-backend:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -934,11 +946,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   strelka-frontend:
     build:
       context: .
       dockerfile: Dockerfiles/strelka-frontend.Dockerfile
-    image: ghcr.io/idaholab/malcolm/strelka-frontend:26.06.0
+    image: ghcr.io/idaholab/malcolm/strelka-frontend:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -979,11 +992,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   strelka-manager:
     build:
       context: .
       dockerfile: Dockerfiles/strelka-manager.Dockerfile
-    image: ghcr.io/idaholab/malcolm/strelka-manager:26.06.0
+    image: ghcr.io/idaholab/malcolm/strelka-manager:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -1023,11 +1037,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   pcap-capture:
     build:
       context: .
       dockerfile: Dockerfiles/pcap-capture.Dockerfile
-    image: ghcr.io/idaholab/malcolm/pcap-capture:26.06.0
+    image: ghcr.io/idaholab/malcolm/pcap-capture:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -1076,11 +1091,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 30s
   pcap-monitor:
     build:
       context: .
       dockerfile: Dockerfiles/pcap-monitor.Dockerfile
-    image: ghcr.io/idaholab/malcolm/pcap-monitor:26.06.0
+    image: ghcr.io/idaholab/malcolm/pcap-monitor:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -1128,11 +1144,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 90s
+    stop_grace_period: 20s
   upload:
     build:
       context: .
       dockerfile: Dockerfiles/file-upload.Dockerfile
-    image: ghcr.io/idaholab/malcolm/file-upload:26.06.0
+    image: ghcr.io/idaholab/malcolm/file-upload:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1169,8 +1186,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   htadmin:
-    image: ghcr.io/idaholab/malcolm/htadmin:26.06.0
+    image: ghcr.io/idaholab/malcolm/htadmin:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1215,8 +1233,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   freq:
-    image: ghcr.io/idaholab/malcolm/freq:26.06.0
+    image: ghcr.io/idaholab/malcolm/freq:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1250,8 +1269,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   netbox:
-    image: ghcr.io/idaholab/malcolm/netbox:26.06.0
+    image: ghcr.io/idaholab/malcolm/netbox:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1323,8 +1343,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 120s
+    stop_grace_period: 20s
   postgres:
-    image: ghcr.io/idaholab/malcolm/postgresql:26.06.0
+    image: ghcr.io/idaholab/malcolm/postgresql:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1360,12 +1381,13 @@ services:
       target: /var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "/usr/local/bin/container_health.sh"]
-      interval: 60s
+      interval: 30s
       timeout: 15s
-      retries: 3
-      start_period: 45s
+      retries: 20
+      start_period: 20m
+    stop_grace_period: 1m
   valkey:
-    image: ghcr.io/idaholab/malcolm/valkey:26.06.0
+    image: ghcr.io/idaholab/malcolm/valkey:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -1408,8 +1430,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 45s
+    stop_grace_period: 20s
   valkey-cache:
-    image: ghcr.io/idaholab/malcolm/valkey:26.06.0
+    image: ghcr.io/idaholab/malcolm/valkey:26.07.1
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -1447,8 +1470,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 45s
+    stop_grace_period: 20s
   api:
-    image: ghcr.io/idaholab/malcolm/api:26.06.0
+    image: ghcr.io/idaholab/malcolm/api:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1496,8 +1520,9 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+    stop_grace_period: 20s
   keycloak:
-    image: ghcr.io/idaholab/malcolm/keycloak:26.06.0
+    image: ghcr.io/idaholab/malcolm/keycloak:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1536,11 +1561,12 @@ services:
       timeout: 15s
       retries: 3
       start_period: 45s
+    stop_grace_period: 30s
   nginx-proxy:
     build:
       context: .
       dockerfile: Dockerfiles/nginx.Dockerfile
-    image: ghcr.io/idaholab/malcolm/nginx-proxy:26.06.0
+    image: ghcr.io/idaholab/malcolm/nginx-proxy:26.07.1
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1615,6 +1641,7 @@ services:
       timeout: 15s
       retries: 3
       start_period: 120s
+    stop_grace_period: 20s
     labels:
       traefik.enable: false
 

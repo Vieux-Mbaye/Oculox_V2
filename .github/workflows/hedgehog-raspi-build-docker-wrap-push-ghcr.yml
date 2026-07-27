@@ -17,13 +17,26 @@ on:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rpi_model: 4
+            rpi_os: trixie
+          - rpi_model: 4
+            rpi_os: forky
+          - rpi_model: 5
+            rpi_os: forky
+
     uses: ./.github/workflows/raspi-build-push.yml
+
     permissions:
       actions: write
       packages: write
       contents: read
       security-events: write
+
     with:
       profile: hedgehog
-      rpi_model: 4
-      rpi_os: trixie
+      rpi_model: ${{ matrix.rpi_model }}
+      rpi_os: ${{ matrix.rpi_os }}

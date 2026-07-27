@@ -138,7 +138,6 @@ _STRING_VARS = [
     KEY_ENV_OPENSEARCH_SECONDARY_URL,
     KEY_ENV_OPENSEARCH_URL,
     KEY_ENV_PCAP_FILTER,
-    KEY_ENV_PCAP_IFACE,
     KEY_ENV_PCAP_NODE_NAME,
     KEY_ENV_PGID,
     KEY_ENV_PIPELINE_WORKERS,
@@ -157,6 +156,8 @@ _STRING_VARS = [
 # 3. List-of-strings transform logic
 _LIST_OF_STRING_VARS = [
     KEY_ENV_EXTRA_TAGS,
+    KEY_ENV_LOGSTASH_NETBOX_ENRICHED_LOG_TYPES,
+    KEY_ENV_PCAP_IFACE,
 ]
 
 
@@ -532,6 +533,9 @@ class EnvMapper:
             ]
 
             # NetBox
+            self.env_var_by_map_key[KEY_ENV_LOGSTASH_NETBOX_ENRICHED_LOG_TYPES].config_items = [
+                KEY_CONFIG_ITEM_LOGSTASH_NETBOX_ENRICHED_LOG_TYPES
+            ]
             self.env_var_by_map_key[KEY_ENV_NETBOX_ENRICHMENT].config_items = [KEY_CONFIG_ITEM_NETBOX_LOGSTASH_ENRICH]
             self.env_var_by_map_key[KEY_ENV_NETBOX_AUTO_CREATE_PREFIX].config_items = [
                 KEY_CONFIG_ITEM_NETBOX_LOGSTASH_AUTO_CREATE_PREFIX
@@ -805,7 +809,7 @@ class EnvMapper:
             map_key_constant_value: The Python constant for the environment variable key
                               (e.g., env_keys.KEY_ENV_...).
         Returns:
-            The EnvVariable object if found, otherwise None.
+            The EnvVariable object if found; otherwise, None.
         """
         return self.env_var_by_map_key.get(map_key_constant_value)
 
@@ -817,7 +821,7 @@ class EnvMapper:
             variable_name: The name of the environment variable to search for.
 
         Returns:
-            The name of the .env file containing the variable if found, otherwise None.
+            The name of the .env file containing the variable if found; otherwise, None.
         """
         for file_name, var_list in self.env_vars_by_file.items():
             for var_instance in var_list:
@@ -833,7 +837,7 @@ class EnvMapper:
             file_name: The name of the .env file.
 
         Returns:
-            A list of EnvVariable objects if the file is found, otherwise None.
+            A list of EnvVariable objects if the file is found; otherwise, None.
             Returns a copy of the list; empty if the file exists but has no variables.
         """
         variables_list = self.env_vars_by_file.get(file_name)

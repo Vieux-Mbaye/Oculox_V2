@@ -70,6 +70,7 @@ from malcolm_common import (
     ChooseOne,
     ClearScreen,
     DetermineYamlFileFormat,
+    DialogCanceledException,
     DisplayMessage,
     DisplayProgramBox,
     DotEnvDynamic,
@@ -630,7 +631,7 @@ def keystore_op(service, dropPriv=False, *keystore_args, **run_process_kwargs):
 
                 dockerCmd = None
 
-                # determine if Malcolm is running; if so, we'll use docker-compose exec, other wise we'll use docker run
+                # determine if Malcolm is running; if so, we'll use docker-compose exec; otherwise, we'll use docker run
                 err, out = run_process(
                     [dockerComposeBin, '--profile', args.composeProfile, '-f', args.composeFile, 'ps', '-q', service],
                     env=osEnv,
@@ -664,7 +665,7 @@ def keystore_op(service, dropPriv=False, *keystore_args, **run_process_kwargs):
                     ]
 
                 else:
-                    # Malcolm isn't running, do 'docker run' to spin up a temporary container to run the ocmmand
+                    # Malcolm isn't running, do 'docker run' to spin up a temporary container to run the command
 
                     # "grep" the docker image out of the service's image: value from the docker-compose YML file
                     serviceImage = None
@@ -1125,7 +1126,7 @@ def logs():
     global orchMode
     global shuttingDown
 
-    finishedStartingRegEx = re.compile(r'.+Pipelines\s+running\s+\{.*:non_running_pipelines=>\[\]\}')
+    finishedStartingRegEx = re.compile(r'.+Pipelines\s+running\s+\{.*non_running_pipelines:\s*\[\]\}')
 
     osEnv = os.environ.copy()
     # use local temporary path
@@ -1414,20 +1415,26 @@ def start():
 
         # make sure the auth files exist. if we are in an interactive shell and we're
         # missing any of the auth files, prompt to create them now
-        if sys.__stdin__.isatty() and (
-            not MalcolmAuthFilesExist(
+        missingAuthFiles = MalcolmAuthFilesExist(
+            configDir=args.configDir, run_profile=args.composeProfile, auth_method=getNginxAuthMethod()
+        )
+        if sys.__stdin__.isatty() and missingAuthFiles:
+            try:
+                authSetup()
+            except DialogCanceledException:
+                pass
+            missingAuthFiles = MalcolmAuthFilesExist(
                 configDir=args.configDir, run_profile=args.composeProfile, auth_method=getNginxAuthMethod()
             )
-        ):
-            authSetup()
 
         # still missing? sorry charlie
-        if not MalcolmAuthFilesExist(
-            configDir=args.configDir, run_profile=args.composeProfile, auth_method=getNginxAuthMethod()
-        ):
-            raise Exception(
-                'Files relating to authentication and/or secrets are missing, please run ./scripts/auth_setup to generate them'
-            )
+        if missingAuthFiles:
+            malcolmPathPrefix = GetMalcolmPath() + os.sep
+            missingAuthMessage = f'Files relating to authentication and/or secrets are missing: {", ".join([
+                p[len(malcolmPathPrefix) :] if p.startswith(malcolmPathPrefix) else p for p in missingAuthFiles
+            ])}; please run ./scripts/auth_setup to generate them'
+            DisplayMessage(missingAuthMessage)
+            raise Exception(missingAuthMessage)
 
         # if the OpenSearch keystore doesn't exist exist, create empty ones
         if ((orchMode is not OrchestrationFramework.DOCKER_COMPOSE) or (args.composeProfile == PROFILE_MALCOLM)) and (
@@ -2163,7 +2170,7 @@ def authSetup():
                             if args.cmdAuthSetupNonInteractive and username and args.authPasswordHtpasswd:
                                 f.write(f'{username}:{args.authPasswordHtpasswd}')
                             for line in htpasswdLines:
-                                # if the admininstrator username has changed, remove the previous administrator username from htpasswd
+                                # if the administrator username has changed, remove the previous administrator username from htpasswd
                                 if (
                                     (usernamePrevious is not None)
                                     and (usernamePrevious != username)
@@ -2309,7 +2316,7 @@ def authSetup():
                                     defaultBehavior=defaultBehavior,
                                 )
 
-                                # test the connection if we're intereractive
+                                # test the connection if we're interactive
                                 if (
                                     not args.cmdAuthSetupNonInteractive
                                     and (
@@ -3206,7 +3213,7 @@ def main():
         metavar='<string>',
         type=str,
         default=os.getenv('MALCOLM_IMAGE_TAG', None),
-        help='Tag for container images (e.g., "26.06.0"; only for "start" operation with Kubernetes)',
+        help='Tag for container images (e.g., "26.07.1"; only for "start" operation with Kubernetes)',
     )
     kubernetesGroup.add_argument(
         '--delete-namespace',
@@ -3755,7 +3762,7 @@ def main():
         checkEnvFilesAndValues()
         checkWiseFile()
 
-        # stop Malcolm (and wipe data if requestsed)
+        # stop Malcolm (and wipe data if requested)
         if args.cmdRestart or args.cmdStop or args.cmdWipe:
             stop(wipe=args.cmdWipe)
 

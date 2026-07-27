@@ -2,7 +2,7 @@
 
 ![Malcolm Network Diagram](./images/malcolm_network_diagram.png)
 
-Malcolm processes network traffic data in the form of packet capture (PCAP) files or Zeek logs. A [sensor](live-analysis.md#Hedgehog) monitors network traffic mirrored to it over a SPAN port on a network switch or router, or by using a network TAP device. [Zeek](https://www.zeek.org/index.html) logs and [Arkime](https://arkime.com/) sessions are generated containing important session metadata from the traffic observed, which are then securely forwarded to a Malcolm instance. Full PCAP files are optionally stored locally on the sensor device for later examination.
+Malcolm processes network traffic data in the form of packet capture (PCAP) files or Zeek logs. A [sensor](live-analysis.md#Hedgehog) monitors network traffic mirrored to it over a SPAN port on a network switch or router, or by using a network TAP device. [Zeek](https://zeek.org/) logs and [Arkime](https://arkime.com/) sessions are generated containing important session metadata from the traffic observed, which are then securely forwarded to a Malcolm instance. Full PCAP files are optionally stored locally on the sensor device for later examination.
 
 Malcolm parses the network session data and enriches it with additional lookups and mappings including GeoIP mapping, hardware manufacturer lookups from [organizationally unique identifiers (docs/OUI)](http://standards-oui.ieee.org/oui/oui.txt) in MAC addresses, assigning names to [network segments and hosts](asset-interaction-analysis.md#AssetInteractionAnalysis) based on a user-defined asset inventory, performing [JA4 fingerprinting](https://blog.foxio.io/ja4%2B-network-fingerprinting), and many others.
 
@@ -99,7 +99,13 @@ Malcolm can also easily be deployed locally on an ordinary consumer workstation 
     - [Alerting](alerting.md#Alerting)
         + [Email Sender Accounts](alerting.md#AlertingEmail)
         + [Event Logging Loopback API](api-event-logging.md)
-* [Search Queries in Arkime and OpenSearch Dashboards](queries-cheat-sheet.md#SearchCheatSheet)
+* [Search Queries in Arkime and OpenSearch Dashboards](queries-cheat-sheet.md#SearchSyntax)
+    - [Query Syntax Comparison "Cheat Sheet"](queries-cheat-sheet.md#SearchCheatSheet)
+    - [Arkime Query Syntax](queries-cheat-sheet.md#ArkimeQueries)
+    - [OpenSearch Dashboards Query Syntax](queries-cheat-sheet.md#DashboardsQueries)
+        + [Dashboards Query Language (DQL)](queries-cheat-sheet.md#DashboardsQueriesDQL)
+        + [Apache Lucene Query Parser Syntax](queries-cheat-sheet.md#DashboardsQueriesLucene)
+        + [SQL and PPL](queries-cheat-sheet.md#DashboardsSQLandPPL)
 * Other Malcolm features
     - [Analytics](analytics.md#Analytics)
     - [Custom Rules, Scripts and Plugins](custom-rules.md#CustomRulesAndScripts)
