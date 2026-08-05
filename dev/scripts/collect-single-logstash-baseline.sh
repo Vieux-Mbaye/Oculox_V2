@@ -6,6 +6,11 @@ ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 RUN_ID=${1:-baseline_$(date -u +%Y%m%d_%H%M%S)}
 OUT_DIR="$ROOT_DIR/dev/tests/results/phase4/$RUN_ID"
 
+[[ "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || {
+  printf 'RUN_ID invalide : utiliser uniquement lettres, chiffres, point, tiret et underscore.\n' >&2
+  exit 2
+}
+
 mkdir -p "$OUT_DIR"
 printf '%s\n' "$RUN_ID" > "$ROOT_DIR/dev/tests/results/phase4/LATEST"
 

@@ -1,0 +1,24 @@
+filebeat.inputs:
+  - type: filestream
+    id: phase6-mtls-negative
+    paths:
+      - /tmp/phase6-mtls-negative.log
+    prospector:
+      scanner:
+        fingerprint:
+          enabled: false
+    close.reader.on_eof: true
+
+output.logstash:
+  hosts:
+    - logstash:5044
+  ssl.enabled: true
+  ssl.certificate_authorities:
+    - /certs/ca.crt
+  ssl.supported_protocols:
+    - TLSv1.2
+    - TLSv1.3
+  ssl.verification_mode: full
+
+logging.level: error
+logging.to_files: false

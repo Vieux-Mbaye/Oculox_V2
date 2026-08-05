@@ -1,0 +1,14 @@
+host:
+  memory_warning_percent: 85
+  memory_critical_percent: 95
+  disk_warning_percent: 80
+  disk_critical_percent: 90
+logstash:
+  queue_warning_percent: 60
+  queue_critical_percent: 85
+  worker_warning_percent: 85
+opensearch:
+  heap_warning_percent: 75
+  heap_critical_percent: 85
+  disk_warning_percent: 80
+  disk_critical_percent: 90
