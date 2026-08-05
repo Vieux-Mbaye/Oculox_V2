@@ -59,11 +59,17 @@ git commit -m "Message décrivant le changement"
 
 Un commit local n'est pas encore disponible dans Gitea.
 
-### 2.4 Branche Et Dépôt Distant
+### 2.4 Branche Et Dépôts Distants
 
-La branche de livraison est `upgrade/v26.07.1`. Le dépôt distant `origin`
-correspond au dépôt Oculox dans Gitea. `upstream` pointe vers le projet Malcolm
-officiel et sert uniquement à suivre les versions amont.
+La branche de livraison est `main`. La branche technique
+`upgrade/v26.07.1` est conservée localement comme référence de la migration et
+pointe actuellement sur le même commit que `main`.
+
+Les dépôts distants ont chacun un rôle précis :
+
+- `origin` : nouveau dépôt de livraison `vmbaye/Oculox_V2` dans Gitea ;
+- `upstream` : dépôt officiel Malcolm, utilisé pour suivre les versions amont ;
+- `legacy` : ancien dépôt interne Oculox, conservé comme référence historique.
 
 ```bash
 git branch --show-current
@@ -73,11 +79,25 @@ git remote -v
 La publication est effectuée avec :
 
 ```bash
-git push -u origin upgrade/v26.07.1
+git push -u origin main
 ```
 
 L'option `-u` mémorise la branche distante associée. Les prochains envois
 pourront ensuite utiliser simplement `git push`.
+
+La connexion ouverte dans un navigateur ne fournit pas automatiquement les
+identifiants au client Git du terminal. Pour une URL HTTPS, il faut créer un
+jeton d'accès personnel dans Gitea et l'utiliser comme mot de passe lors du
+premier `git push`. Le jeton ne doit jamais être écrit dans une commande, un
+fichier du dépôt ou la documentation.
+
+Une clé SSH enregistrée dans le compte Gitea constitue l'autre méthode
+recommandée. Dans ce cas, l'URL peut être remplacée ainsi :
+
+```bash
+git remote set-url origin git@gitea.tcric.hq:vmbaye/Oculox_V2.git
+git push -u origin main
+```
 
 ## 3. Contenu De La Livraison
 
@@ -183,7 +203,7 @@ production.
 ```bash
 git clone <URL-GITEA> Oculox
 cd Oculox
-git switch upgrade/v26.07.1
+git switch main
 ./oculox install principal --server-name <nom-DNS-ou-IP>
 ./oculox validate
 ./oculox status
@@ -305,7 +325,7 @@ git status --short --branch
 git log --oneline --decorate -5
 git diff --check
 ./dev/scripts/audit-dev-repository.sh
-git ls-remote --heads origin upgrade/v26.07.1
+git ls-remote --heads origin main
 ```
 
 Ces commandes prouvent respectivement l'état local, les commits produits,
