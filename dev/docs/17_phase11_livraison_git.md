@@ -331,3 +331,90 @@ git ls-remote --heads origin main
 Ces commandes prouvent respectivement l'état local, les commits produits,
 l'hygiène du diff, la validité technique et la présence de la branche dans
 Gitea.
+
+## 12. Première Publication Dans Un Nouveau Dépôt Gitea
+
+### 12.1 Organisation Des Dépôts Distants
+
+Lorsqu'un nouveau dépôt Gitea doit remplacer l'ancien dépôt interne sans perdre
+la référence historique ni le lien avec Malcolm officiel, la configuration est
+réalisée ainsi :
+
+```bash
+git remote rename origin legacy
+git remote add origin git@gitea.tcric.hq:vmbaye/Oculox_V2.git
+git remote -v
+```
+
+Cette organisation permet d'utiliser :
+
+- `origin` pour les développements Oculox V2 ;
+- `upstream` pour suivre les versions officielles Malcolm ;
+- `legacy` pour consulter l'ancien dépôt interne.
+
+La branche validée est ensuite publiée :
+
+```bash
+git switch main
+git push -u origin main
+```
+
+L'option `-u` associe la branche locale `main` à `origin/main`. Après cette
+première publication, les commandes courantes deviennent simplement :
+
+```bash
+git pull --ff-only
+git push
+```
+
+`git pull --ff-only` refuse les fusions implicites. Cette protection évite de
+créer un commit de fusion accidentel lors d'une simple synchronisation.
+
+### 12.2 Vérification De L'Égalité Locale Et Distante
+
+```bash
+git status --short --branch
+git rev-parse main
+git rev-parse origin/main
+git rev-list --left-right --count main...origin/main
+```
+
+Le contrôle final effectué après la première publication a retourné :
+
+```text
+main...origin/main
+LOCAL   e662ff6196fd6af5383903ec860218d71880e9c9
+TRACKED e662ff6196fd6af5383903ec860218d71880e9c9
+0  0
+```
+
+Les deux identifiants identiques prouvent que la branche locale et sa référence
+distante pointent sur le même commit. Les deux zéros signifient qu'aucune des
+branches n'est en avance sur l'autre.
+
+### 12.3 Résolution Du Refus HTTP 413
+
+Le premier essai par HTTPS a été refusé avec `HTTP 413`. Cette erreur signifie
+que le reverse proxy placé devant Gitea a rejeté le paquet Git HTTP, dont la
+taille compressée était d'environ 258 Mio. Elle ne correspond ni à une erreur
+du code ni à un problème d'identification.
+
+La publication par SSH évite la limite de taille du corps HTTP :
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+git remote set-url origin git@gitea.tcric.hq:vmbaye/Oculox_V2.git
+ssh -T git@gitea.tcric.hq
+git push -u origin main
+```
+
+La clé publique affichée par la première commande doit être enregistrée dans
+les paramètres SSH du compte Gitea. Une clé privée ou un jeton d'accès ne doit
+jamais être copié dans le dépôt, la documentation, une URL Git ou un message.
+
+### 12.4 Résultat De Livraison
+
+La première publication SSH a transféré les 64 575 objets du dépôt, résolu les
+48 398 deltas et créé la branche distante `main`. La branche locale suit
+désormais `origin/main`. La phase 11 est donc techniquement terminée lorsque le
+présent commit documentaire est lui aussi publié avec `git push`.
