@@ -54,15 +54,17 @@ Cette commande réalise la chaîne suivante :
 1. `scripts/install.py --tui` prépare le système avec l'assistant officiel ;
 2. les fichiers `config/*.env` créés par l'étape privilégiée sont rendus à
    l'opérateur qui a lancé `oculox` ;
-3. les valeurs `PUID=0` et `PGID=0`, lorsqu'elles proviennent des valeurs par
+3. le répertoire d'état local `dev/generated/` est créé avec des permissions
+   réservées à cet opérateur, même si le dépôt a été cloné par `root` ;
+4. les valeurs `PUID=0` et `PGID=0`, lorsqu'elles proviennent des valeurs par
    défaut de l'exécution avec `sudo`, sont remplacées par l'UID et le GID de cet
    opérateur ; une identité non nulle choisie dans l'assistant est conservée ;
-4. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
-5. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
-6. l'autorité Oculox et le certificat serveur sont générés localement ;
-7. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
-8. les configurations Principal et Hedgehog sont validées sans les démarrer ;
-9. les images sont récupérées et le profil Principal complet est démarré.
+5. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
+6. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
+7. l'autorité Oculox et le certificat serveur sont générés localement ;
+8. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
+9. les configurations Principal et Hedgehog sont validées sans les démarrer ;
+10. les images sont récupérées et le profil Principal complet est démarré.
 
 La reprise de propriété de `config/` est nécessaire parce que l'installation
 système officielle exige les privilèges administrateur sous Linux, alors que

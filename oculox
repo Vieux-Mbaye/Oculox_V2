@@ -163,6 +163,11 @@ case "$COMMAND" in
         # operator before the unprivileged Oculox preparation reads them.
         sudo ./scripts/install.py --tui
         sudo chown -R "$(id -u):$(id -g)" "$PROJECT_DIR/config"
+        # The Oculox state is runtime data, not source code. Create its parent
+        # explicitly for the operator even when the repository was cloned by
+        # root, otherwise the role preparation cannot write deployment.env.
+        sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 \
+            "$PROJECT_DIR/dev/generated"
         # Running the installer through sudo may also leave the default
         # container identity at root. Correct only those root defaults and
         # preserve any non-zero identity explicitly selected in the TUI.
