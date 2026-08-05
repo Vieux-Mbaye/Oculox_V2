@@ -12,6 +12,39 @@ OCULOX is a powerful network traffic analysis tool suite designed with the follo
 
 In short, OCULOX provides an easily deployable traffic analysis tool suite for network security monitoring.
 
+## Integrated Deployment
 
+Oculox uses the official Malcolm configuration assistants and a single wrapper
+for the resilient Principal and Hedgehog roles.
+
+```bash
+# Central Principal with two Logstash ingestion instances
+./oculox install principal --server-name <principal-DNS-name-or-IP>
+
+# Dedicated identity bundle, created on the Principal
+./oculox collector-bundle <collector-name> <principal-DNS-name-or-IP>
+
+# Hedgehog collector, after securely transferring its bundle
+./oculox install hedgehog \
+  --principal-host <principal-DNS-name-or-IP> \
+  --collector-name <collector-name> \
+  --bundle <bundle-directory>
+```
+
+Routine operations use the same interface on both roles:
+
+```bash
+./oculox start
+./oculox restart [service...]
+./oculox status
+./oculox logs [service...]
+./oculox pull
+./oculox validate
+./oculox stop
+```
+
+The complete deployment procedure, security controls and resilience boundary
+are documented in
+[`dev/docs/13_installation_resiliente_principal_hedgehog.md`](dev/docs/13_installation_resiliente_principal_hedgehog.md).
 
 

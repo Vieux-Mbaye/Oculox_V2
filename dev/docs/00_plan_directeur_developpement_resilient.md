@@ -295,11 +295,13 @@ Une file persistante Logstash n'est pas un stockage partagé destiné à plusieu
 
 ---
 
-# Phase 6 - Configurer Filebeat En Répartition De Charge
+# Phase 6 - Sécuriser Et Répartir L'ingestion
 
 ## But
 
-Permettre à Filebeat d'utiliser simultanément les deux instances Logstash.
+Permettre à Filebeat d'utiliser simultanément les deux instances Logstash,
+protéger le transport par TLS mutuel et rendre les réémissions idempotentes
+dans OpenSearch.
 
 ## Configuration Cible
 
@@ -311,6 +313,11 @@ output.logstash:
     - "logstash:5044"
     - "logstash-2:5044"
   loadbalance: true
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/certs/ca.crt"]
+  ssl.certificate: "/certs/client.crt"
+  ssl.key: "/certs/client.key"
+  ssl.verification_mode: full
 ```
 
 ## Signification
@@ -319,34 +326,49 @@ Avec `loadbalance: true`, Filebeat maintient des connexions vers les deux destin
 
 Filebeat effectue ici une répartition côté client. Il ne devient pas un équipement de load balancing réseau indépendant.
 
+Le mode `full` oblige Filebeat à vérifier la chaîne de confiance et le nom DNS
+de chaque serveur Logstash. De leur côté, les deux Logstash exigent un
+certificat client signé par l'autorité de confiance. Le transport est donc
+authentifié dans les deux sens.
+
+Filebeat garantit une livraison au moins une fois : une réémission peut se
+produire après une interruption. Malcolm calcule cependant un `event.hash`
+stable et l'utilise comme identifiant OpenSearch. La réémission du même
+événement remplace le document existant au lieu d'en créer un second.
+
 ## Contrôles
 
 - les deux connexions TLS sont établies ;
+- un client sans certificat est refusé ;
 - les deux Logstash reçoivent des événements ;
 - la répartition est mesurable ;
 - Filebeat réessaie lorsqu'une instance tombe ;
+- une réémission identique ne crée pas de document supplémentaire ;
 - la reprise ne dépend pas d'une adresse IP temporaire de conteneur.
+
+## État
+
+**Terminée.** La conception, l'implémentation et les essais sont documentés
+dans `dev/docs/07_phase6_repartition_tls_idempotence.md`.
 
 ---
 
-# Phase 7 - Sécuriser Le Transport Et La Persistance
+# Phase 7 - Industrialiser La Persistance Et La Gestion Des Certificats
 
 ## But
 
-Éviter que la distribution réduise la sécurité ou la capacité de reprise.
+Transformer les mécanismes validés en phase 6 en procédures d'exploitation
+durables.
 
-## TLS
+## Cycle De Vie Des Certificats
 
-Vérifier pour chaque instance Logstash :
+Définir pour chaque environnement :
 
-- le certificat serveur ;
-- la clé privée ;
-- l'autorité de certification ;
-- les noms présents dans le certificat ;
-- la validation stricte côté Filebeat ;
-- l'authentification du client ;
 - les dates d'expiration ;
-- la procédure de rotation.
+- la procédure de rotation sans interruption ;
+- le stockage protégé de la clé d'autorité ;
+- la révocation d'un certificat compromis ;
+- l'intégration à la PKI de l'organisation.
 
 ## Files Persistantes
 
@@ -364,14 +386,22 @@ path.queue: chemin unique
 
 Conserver un registre persistant afin que Filebeat sache où reprendre dans chaque fichier.
 
-## Test De Reprise
+## Tests Complémentaires De Persistance
 
-1. envoyer des événements ;
-2. arrêter `logstash` ;
-3. vérifier que `logstash-2` continue ;
-4. redémarrer `logstash` ;
-5. vérifier sa reconnexion ;
-6. contrôler les pertes et les doublons.
+1. interrompre OpenSearch pendant une ingestion contrôlée ;
+2. mesurer la croissance des files persistantes Logstash ;
+3. redémarrer Filebeat et vérifier la reprise depuis son registre ;
+4. redémarrer simultanément les deux Logstash ;
+5. vérifier les événements avant et après reprise ;
+6. dimensionner les files selon le débit et la durée d'indisponibilité visés.
+
+## État
+
+**Terminée.** Les files ont été activées sur les sept pipelines des deux
+Logstash. La reprise a été validée après indisponibilité OpenSearch,
+redémarrage simultané des Logstash et redémarrage Filebeat. Les résultats, le
+dimensionnement et le cycle de vie TLS sont documentés dans
+`dev/docs/08_phase7_persistance_reprise_certificats.md`.
 
 ---
 
@@ -423,6 +453,12 @@ Pour chaque instance et chaque pipeline :
 - seuils d'alerte ;
 - scripts de collecte ;
 - procédure de diagnostic.
+
+## État
+
+**Terminée.** Les collecteurs, seuils, modes complet/léger, résultats de
+validation et procédures sont documentés dans
+`dev/docs/09_phase8_supervision.md`.
 
 ---
 
@@ -481,9 +517,15 @@ Vérifier :
 - OpenSearch green ;
 - résultats reproductibles.
 
+## État
+
+**Terminée.** Le basculement dans les deux sens, la réintégration, les files
+persistantes, le registre Filebeat, le redémarrage complet et TLS ont été
+validés. Voir `dev/docs/10_phase9_tests_resilience.md`.
+
 ---
 
-# Phase 10 - Réaliser Le Benchmark Comparatif
+# Phase 10 - Réaliser La Comparaison Locale
 
 ## But
 
@@ -532,6 +574,18 @@ Le rapport devra indiquer si le deuxième Logstash :
 - déplace le point de saturation vers OpenSearch ;
 - apporte une résilience mesurable.
 
+## État
+
+**Terminée dans le périmètre de développement local.** Les deux modes ont
+indexé intégralement les paliers de 10 000,
+25 000 et 50 000 documents. La répartition est validée ; un gain de 15,09 %
+est observé au palier moyen, mais il n'est pas stable aux autres paliers en
+raison de la pression mémoire de l'hôte partagé. Voir
+`dev/docs/11_phase10_benchmark_comparatif.md`.
+
+Ces valeurs ne constituent pas un dimensionnement de production. La campagne
+de capacité devra être répétée sur le serveur cible.
+
 ---
 
 # Phase 11 - Documenter Et Livrer Dans Git
@@ -579,13 +633,16 @@ Chaque commit devra être compréhensible et réversible indépendamment des ét
 | Phase 1 - Comprendre l'existant | Terminée |
 | Phase 2 - Préparer le dépôt | Terminée, commit Git à réaliser avec le lot validé |
 | Phase 3 - Définir l'architecture cible | Terminée |
-| Phase 4 - Établir la baseline | Prochaine étape |
-| Phase 5 - Créer deux Logstash | À faire |
-| Phase 6 - Configurer la répartition Filebeat | À faire |
-| Phase 7 - Sécuriser transport et persistance | À faire |
-| Phase 8 - Mettre en place la supervision | À faire |
-| Phase 9 - Tester la résilience | À faire |
-| Phase 10 - Réaliser le benchmark comparatif | À faire |
-| Phase 11 - Documenter et livrer | À faire |
+| Phase 4 - Établir la baseline | Terminée |
+| Phase 5 - Créer deux Logstash | Terminée et validée en mode local réduit |
+| Phase 6 - Configurer la répartition Filebeat | Terminée : répartition, mTLS et idempotence validés |
+| Phase 7 - Sécuriser transport et persistance | Terminée : persistance et reprise validées |
+| Phase 8 - Mettre en place la supervision | Terminée et validée sous charge |
+| Phase 9 - Tester la résilience | Terminée : basculement et reprise validés |
+| Phase 10 - Réaliser la comparaison locale | Terminée : comportement local documenté, capacité serveur non qualifiée |
+| Phase 11 - Documenter et livrer | Revue technique terminée, commit ciblé à préparer |
 
-La prochaine étape est la **Phase 4 : établir une baseline mesurée avec le Logstash unique actuel**. Aucun deuxième Logstash ne doit être déployé avant cette mesure de référence.
+La prochaine étape est la **préparation du commit de livraison**, puis la
+**qualification sur un serveur cible représentatif**. La mise en cluster
+d'OpenSearch ne doit débuter qu'après définition d'un dimensionnement
+multi-hôte et de critères de validation de production.

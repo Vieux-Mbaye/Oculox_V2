@@ -89,7 +89,7 @@ Les désactiver dans la configuration changerait la nature du pipeline et rendra
 
 ## 5. Version Locale Et Version Officielle
 
-Le dépôt local utilise actuellement les images **Malcolm 26.06.0**. La branche locale est `custom/local` et son dépôt distant est le dépôt Gitea interne.
+Le dépôt local utilisait les images **Malcolm 26.06.0** au moment de cette étude. La mise à jour vers **Malcolm 26.07.1** a ensuite été réalisée sur la branche `upgrade/v26.07.1`. Le dépôt distant interne reste configuré comme `origin` et le dépôt officiel comme `upstream`.
 
 La version officielle **v26.07.1** apporte notamment :
 
@@ -153,4 +153,4 @@ La mise à niveau sera considérée valide uniquement si :
 
 La réponse au manque de RAM n'est pas de supprimer arbitrairement des composants Malcolm. La méthode correcte est d'adapter le niveau de démarrage au travail en cours : aucun service pour la documentation, le noyau OpenSearch/Logstash pour le développement ciblé, et la plateforme complète uniquement pour les validations de bout en bout.
 
-La mise à niveau vers `v26.07.1` est recommandée avant la duplication de Logstash, mais elle doit être menée comme une opération distincte, sauvegardée, réversible et suivie d'un nouveau baseline.
+La mise à niveau vers `v26.07.1` a été réalisée avant la duplication de Logstash comme une opération distincte, sauvegardée et réversible. Son déroulement réel est documenté dans `05_mise_a_jour_malcolm_v26_07_1.md`.

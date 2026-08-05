@@ -68,9 +68,38 @@ Les éléments suivants ne doivent pas être versionnés :
 - captures PCAP ;
 - bases de données et index OpenSearch.
 
-## État Initial
+## Périmètre De Validation
 
-Le fichier `dev/compose/docker-compose.dev.yml` est volontairement neutre. Il permet de valider l'organisation sans modifier le comportement actuel de Malcolm.
+Cette machine sert au développement, à la validation fonctionnelle et à la
+vérification de la reproductibilité. Les mesures locales permettent de comparer
+deux configurations dans un environnement identique, mais elles ne constituent
+pas une qualification de capacité pour une production.
 
-Les changements fonctionnels seront ajoutés progressivement, avec un test et une explication associés.
+Les essais de débit, d’endurance, de volumétrie et de dimensionnement définitifs
+doivent être exécutés sur un serveur représentatif de la cible, avec des
+ressources dédiées et un protocole de benchmark approuvé.
 
+## Audit Avant Livraison
+
+```bash
+./dev/scripts/audit-dev-repository.sh
+```
+
+Ce contrôle vérifie les syntaxes Bash, Python, YAML et Compose, la présence de
+la version Malcolm attendue, l’absence de clés privées versionnées et
+l’exclusion des données générées. Il ne démarre pas la plateforme.
+
+## Installation Et Exploitation Intégrées
+
+Le lanceur [`oculox`](../oculox) est l'interface unique pour une installation
+Oculox. Il conserve les assistants officiels Malcolm, puis applique le rôle,
+le TLS mutuel, la répartition Filebeat et les deux instances Logstash.
+
+```bash
+./oculox install principal --server-name oculox-principal.example
+./oculox status
+```
+
+Le rôle Hedgehog utilise le même dépôt et le même lanceur, avec un bundle de
+certificats propre au collecteur. La procédure complète est décrite dans
+`dev/docs/13_installation_resiliente_principal_hedgehog.md`.
