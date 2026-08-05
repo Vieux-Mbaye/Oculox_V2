@@ -158,7 +158,16 @@ case "$COMMAND" in
         parse_role_options "$@"
         protect_existing_role
         printf 'Étape 1/4 - Installation système et configuration officielle Malcolm\n'
+        # The complete official installer requires root on Linux and therefore
+        # creates config/*.env as root. Return those generated files to the
+        # operator before the unprivileged Oculox preparation reads them.
         sudo ./scripts/install.py --tui
+        sudo chown -R "$(id -u):$(id -g)" "$PROJECT_DIR/config"
+        # Running the installer through sudo may also leave the default
+        # container identity at root. Correct only those root defaults and
+        # preserve any non-zero identity explicitly selected in the TUI.
+        sed -i "s/^PUID=0$/PUID=$(id -u)/" "$PROJECT_DIR/config/process.env"
+        sed -i "s/^PGID=0$/PGID=$(id -g)/" "$PROJECT_DIR/config/process.env"
         if [[ "$ROLE" == principal ]]; then
             ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
         else

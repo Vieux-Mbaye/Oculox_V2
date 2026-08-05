@@ -52,12 +52,23 @@ Depuis la racine du dépôt cloné sur le serveur Principal :
 Cette commande réalise la chaîne suivante :
 
 1. `scripts/install.py --tui` prépare le système avec l'assistant officiel ;
-2. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
-3. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
-4. l'autorité Oculox et le certificat serveur sont générés localement ;
-5. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
-6. les configurations Principal et Hedgehog sont validées sans les démarrer ;
-7. les images sont récupérées et le profil Principal complet est démarré.
+2. les fichiers `config/*.env` créés par l'étape privilégiée sont rendus à
+   l'opérateur qui a lancé `oculox` ;
+3. les valeurs `PUID=0` et `PGID=0`, lorsqu'elles proviennent des valeurs par
+   défaut de l'exécution avec `sudo`, sont remplacées par l'UID et le GID de cet
+   opérateur ; une identité non nulle choisie dans l'assistant est conservée ;
+4. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
+5. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
+6. l'autorité Oculox et le certificat serveur sont générés localement ;
+7. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
+8. les configurations Principal et Hedgehog sont validées sans les démarrer ;
+9. les images sont récupérées et le profil Principal complet est démarré.
+
+La reprise de propriété de `config/` est nécessaire parce que l'installation
+système officielle exige les privilèges administrateur sous Linux, alors que
+les étapes Oculox suivantes s'exécutent volontairement avec le compte de
+l'opérateur. Elle évite qu'une installation neuve échoue sur un fichier
+`config/process.env` appartenant à `root`.
 
 Les mots de passe ne sont jamais fournis comme arguments. Ils restent gérés par
 l'assistant officiel. Si l'installation de Docker exige un redémarrage ou une
