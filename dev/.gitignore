@@ -2,6 +2,7 @@
 config/*.env
 !config/*.env.example
 config/certs/
+generated/
 
 # Résultats générés
 tests/results/
@@ -15,4 +16,3 @@ monitoring/exports/
 *.tar
 *.tar.gz
 *.zip
-

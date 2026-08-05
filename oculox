@@ -1,0 +1,229 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_OVERRIDE="${PROJECT_DIR}/dev/compose/docker-compose.dev.yml"
+STATE_FILE="${PROJECT_DIR}/dev/generated/deployment.env"
+
+cd "$PROJECT_DIR"
+
+usage() {
+    cat <<'EOF'
+Oculox - installation et exploitation résilientes
+
+Installation neuve :
+  ./oculox install principal --server-name <nom-DNS-ou-IP>
+  ./oculox install hedgehog --principal-host <nom-DNS-ou-IP> \
+      --collector-name <nom> --bundle <répertoire-bundle>
+
+Préparation d'un dépôt déjà configuré :
+  ./oculox prepare principal --server-name <nom-DNS-ou-IP>
+  ./oculox prepare hedgehog --principal-host <nom-DNS-ou-IP> \
+      --collector-name <nom> --bundle <répertoire-bundle>
+
+Exploitation :
+  ./oculox start
+  ./oculox restart [service...]
+  ./oculox stop
+  ./oculox status
+  ./oculox logs [service...]
+  ./oculox pull
+  ./oculox validate
+  ./oculox collector-bundle <nom-collecteur> <nom-DNS-ou-IP-principal> [sortie]
+
+L'installation conserve l'interface officielle Malcolm. Les secrets
+d'authentification sont demandés interactivement et ne sont jamais placés
+dans la ligne de commande ni dans Git.
+EOF
+}
+
+compose() {
+    docker compose \
+        --project-directory "$PROJECT_DIR" \
+        -f "$PROJECT_DIR/docker-compose.yml" \
+        -f "$COMPOSE_OVERRIDE" \
+        "$@"
+}
+
+read_state() {
+    [[ -s "$STATE_FILE" ]] || {
+        printf 'Déploiement non préparé. Exécutez ./oculox prepare ...\n' >&2
+        exit 1
+    }
+    OCULOX_ROLE="$(sed -n 's/^OCULOX_ROLE=//p' "$STATE_FILE")"
+    [[ "$OCULOX_ROLE" == principal || "$OCULOX_ROLE" == hedgehog ]] || {
+        printf 'Rôle invalide dans %s\n' "$STATE_FILE" >&2
+        exit 1
+    }
+    PROFILE="malcolm"
+    [[ "$OCULOX_ROLE" == hedgehog ]] && PROFILE="hedgehog"
+}
+
+parse_role_options() {
+    ROLE="${1:-}"
+    shift || true
+    SERVER_NAME=""
+    PRINCIPAL_HOST=""
+    COLLECTOR_NAME=""
+    BUNDLE=""
+    while (($#)); do
+        case "$1" in
+            --server-name) shift; SERVER_NAME="${1:-}" ;;
+            --principal-host) shift; PRINCIPAL_HOST="${1:-}" ;;
+            --collector-name) shift; COLLECTOR_NAME="${1:-}" ;;
+            --bundle) shift; BUNDLE="${1:-}" ;;
+            *) printf 'Option inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
+        esac
+        shift
+    done
+    [[ "$ROLE" == principal || "$ROLE" == hedgehog ]] || { usage; exit 2; }
+}
+
+protect_existing_role() {
+    if [[ -s "$STATE_FILE" ]]; then
+        local existing_role
+        existing_role="$(sed -n 's/^OCULOX_ROLE=//p' "$STATE_FILE")"
+        if [[ -n "$existing_role" && "$existing_role" != "$ROLE" ]]; then
+            printf 'Ce dépôt est déjà préparé pour le rôle %s.\n' "$existing_role" >&2
+            printf 'Utilisez un dépôt et des données distincts pour le rôle %s.\n' "$ROLE" >&2
+            exit 1
+        fi
+    fi
+}
+
+prepare_principal() {
+    [[ -n "$SERVER_NAME" ]] || { printf '%s\n' '--server-name est obligatoire' >&2; exit 2; }
+    ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
+    ./dev/scripts/generate-beats-pki.sh --server-name "$SERVER_NAME"
+    ./dev/scripts/render-filebeat-ha-config.py \
+        --output-dir "$PROJECT_DIR/dev/generated/filebeat" \
+        --host logstash:5044 \
+        --host logstash-2:5044
+}
+
+bundle_value() {
+    local key="$1"
+    sed -n "s/^${key}=//p" "$BUNDLE/endpoints.env"
+}
+
+prepare_hedgehog() {
+    [[ -n "$PRINCIPAL_HOST" && -n "$COLLECTOR_NAME" && -n "$BUNDLE" ]] || {
+        printf '%s\n' '--principal-host, --collector-name et --bundle sont obligatoires' >&2
+        exit 2
+    }
+    for file in ca.crt client.crt client.key endpoints.env SHA256SUMS; do
+        [[ -s "$BUNDLE/$file" ]] || { printf 'Bundle incomplet : %s\n' "$BUNDLE/$file" >&2; exit 1; }
+    done
+    (cd "$BUNDLE" && sha256sum -c SHA256SUMS)
+    [[ "$(bundle_value OCULOX_PRINCIPAL_HOST)" == "$PRINCIPAL_HOST" ]] || {
+        printf 'Le bundle ne correspond pas au principal %s.\n' "$PRINCIPAL_HOST" >&2
+        exit 1
+    }
+    [[ "$(bundle_value OCULOX_COLLECTOR_NAME)" == "$COLLECTOR_NAME" ]] || {
+        printf 'Le bundle ne correspond pas au collecteur %s.\n' "$COLLECTOR_NAME" >&2
+        exit 1
+    }
+
+    ./dev/scripts/configure-deployment-role.py \
+        --role hedgehog \
+        --principal-host "$PRINCIPAL_HOST" \
+        --collector-name "$COLLECTOR_NAME"
+    install -d -m 0700 "$PROJECT_DIR/dev/generated/pki"
+    install -m 0644 "$BUNDLE/ca.crt" "$PROJECT_DIR/dev/generated/pki/ca.crt"
+    install -m 0644 "$BUNDLE/client.crt" "$PROJECT_DIR/dev/generated/pki/client.crt"
+    install -m 0600 "$BUNDLE/client.key" "$PROJECT_DIR/dev/generated/pki/client.key"
+    ./dev/scripts/render-filebeat-ha-config.py \
+        --output-dir "$PROJECT_DIR/dev/generated/filebeat" \
+        --host "${PRINCIPAL_HOST}:5044" \
+        --host "${PRINCIPAL_HOST}:5045"
+}
+
+prepare_role() {
+    protect_existing_role
+    if [[ "$ROLE" == principal ]]; then
+        prepare_principal
+    else
+        prepare_hedgehog
+    fi
+    ./dev/scripts/validate-compose.sh
+    printf 'Préparation %s terminée.\n' "$ROLE"
+}
+
+COMMAND="${1:-}"
+shift || true
+
+case "$COMMAND" in
+    install)
+        parse_role_options "$@"
+        protect_existing_role
+        printf 'Étape 1/4 - Installation système et configuration officielle Malcolm\n'
+        sudo ./scripts/install.py --tui
+        if [[ "$ROLE" == principal ]]; then
+            ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
+        else
+            ./dev/scripts/configure-deployment-role.py \
+                --role hedgehog \
+                --principal-host "$PRINCIPAL_HOST" \
+                --collector-name "$COLLECTOR_NAME"
+        fi
+        printf 'Étape 2/4 - Authentification et secrets officiels\n'
+        ./scripts/auth_setup
+        printf 'Étape 3/4 - Application du rôle et de la résilience Oculox\n'
+        prepare_role
+        printf 'Étape 4/4 - Démarrage de la plateforme complète\n'
+        read_state
+        if ! docker info >/dev/null 2>&1; then
+            cat <<'EOF'
+La configuration Oculox est complète, mais cette session n'a pas encore accès
+au moteur Docker. Redémarrez le serveur ou ouvrez une nouvelle session, puis
+exécutez uniquement :
+
+  ./oculox start
+EOF
+            exit 0
+        fi
+        compose --profile "$PROFILE" pull
+        compose --profile "$PROFILE" up -d
+        ./oculox status
+        ;;
+    prepare)
+        parse_role_options "$@"
+        prepare_role
+        ;;
+    start)
+        read_state
+        compose --profile "$PROFILE" up -d
+        ./oculox status
+        ;;
+    restart)
+        read_state
+        compose --profile "$PROFILE" restart "$@"
+        ./oculox status
+        ;;
+    stop)
+        read_state
+        compose --profile "$PROFILE" down
+        ;;
+    status)
+        read_state
+        compose --profile "$PROFILE" ps
+        ;;
+    logs)
+        read_state
+        compose --profile "$PROFILE" logs --tail 200 "$@"
+        ;;
+    pull)
+        read_state
+        compose --profile "$PROFILE" pull
+        ;;
+    validate)
+        ./dev/scripts/audit-dev-repository.sh
+        read_state
+        compose --profile "$PROFILE" config --quiet
+        ;;
+    collector-bundle)
+        ./dev/scripts/create-collector-bundle.sh "$@"
+        ;;
+    *) usage; exit 2 ;;
+esac

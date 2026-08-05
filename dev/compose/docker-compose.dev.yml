@@ -1,4 +1,135 @@
 # Surcharges locales appliquées au docker-compose.yml d'origine.
-# Ce fichier est volontairement neutre au début de la phase 2.
-services: {}
+# Le service officiel "logstash" reste inchangé. La seconde instance en
+# hérite, puis ne remplace que son identité et sa file persistante.
+services:
+  # L'installateur officiel permet de choisir la politique de redémarrage.
+  # Cette surcharge garantit le comportement attendu par le déploiement Oculox,
+  # y compris après un redémarrage de l'hôte.
+  api:
+    restart: unless-stopped
 
+  arkime:
+    restart: unless-stopped
+
+  arkime-live:
+    restart: unless-stopped
+
+  dashboards:
+    restart: unless-stopped
+
+  dashboards-helper:
+    restart: unless-stopped
+
+  filebeat:
+    restart: unless-stopped
+    volumes:
+      - ./dev/generated/filebeat/filebeat-logs.yml:/usr/share/filebeat-logs/filebeat-logs.yml:ro
+      - ./dev/generated/filebeat/filebeat-nginx.yml:/usr/share/filebeat-nginx/filebeat-nginx.yml:ro
+      - ./dev/generated/filebeat/filebeat-syslog-tcp.yml:/usr/share/filebeat-syslog-tcp/filebeat-syslog-tcp.yml:ro
+      - ./dev/generated/filebeat/filebeat-syslog-udp.yml:/usr/share/filebeat-syslog-udp/filebeat-syslog-udp.yml:ro
+      - ./dev/generated/filebeat/filebeat-tcp.yml:/usr/share/filebeat-tcp/filebeat-tcp.yml:ro
+      - ./dev/generated/pki/ca.crt:/certs/ca.crt:ro
+      - ./dev/generated/pki/client.crt:/certs/client.crt:ro
+      - ./dev/generated/pki/client.key:/certs/client.key:ro
+
+  filescan:
+    restart: unless-stopped
+
+  freq:
+    restart: unless-stopped
+
+  htadmin:
+    restart: unless-stopped
+
+  keycloak:
+    restart: unless-stopped
+
+  logstash:
+    restart: unless-stopped
+    ports:
+      - "${OCULOX_LOGSTASH_BIND_IP:-0.0.0.0}:5044:5044/tcp"
+    volumes:
+      - ./dev/config/logstash/input/01_beats_input.conf:/usr/share/logstash/malcolm-pipelines.available/input/01_beats_input.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/beats/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/enrichment/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/filescan/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_input.conf:/usr/share/logstash/malcolm-pipelines.available/input/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_output.conf:/usr/share/logstash/malcolm-pipelines.available/output/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/suricata/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/zeek/00_config.conf:ro
+      - ./dev/generated/pki/ca.crt:/certs/ca.crt:ro
+      - ./dev/generated/pki/server.crt:/certs/server.crt:ro
+      - ./dev/generated/pki/server.key:/certs/server.key:ro
+
+  netbox:
+    restart: unless-stopped
+
+  nginx-proxy:
+    restart: unless-stopped
+
+  opensearch:
+    restart: unless-stopped
+
+  pcap-capture:
+    restart: unless-stopped
+
+  pcap-monitor:
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  strelka-backend:
+    restart: unless-stopped
+
+  strelka-frontend:
+    restart: unless-stopped
+
+  strelka-manager:
+    restart: unless-stopped
+
+  suricata:
+    restart: unless-stopped
+
+  suricata-live:
+    restart: unless-stopped
+
+  upload:
+    restart: unless-stopped
+
+  valkey:
+    restart: unless-stopped
+
+  valkey-cache:
+    restart: unless-stopped
+
+  zeek:
+    restart: unless-stopped
+
+  zeek-live:
+    restart: unless-stopped
+
+  logstash-2:
+    extends:
+      file: docker-compose.yml
+      service: logstash
+    hostname: logstash-2
+    restart: unless-stopped
+    ports:
+      - "${OCULOX_LOGSTASH_BIND_IP:-0.0.0.0}:5045:5044/tcp"
+    volumes:
+      - logstash-persistent-queue-2:/logstash-persistent-queue
+      - ./dev/config/logstash/input/01_beats_input.conf:/usr/share/logstash/malcolm-pipelines.available/input/01_beats_input.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/beats/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/enrichment/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/filescan/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_input.conf:/usr/share/logstash/malcolm-pipelines.available/input/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_output.conf:/usr/share/logstash/malcolm-pipelines.available/output/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/suricata/00_config.conf:ro
+      - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/zeek/00_config.conf:ro
+      - ./dev/generated/pki/ca.crt:/certs/ca.crt:ro
+      - ./dev/generated/pki/server.crt:/certs/server.crt:ro
+      - ./dev/generated/pki/server.key:/certs/server.key:ro
+
+volumes:
+  logstash-persistent-queue-2:

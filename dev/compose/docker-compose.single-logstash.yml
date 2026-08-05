@@ -1,0 +1,10 @@
+# Profil de comparaison : mêmes certificats et mêmes sources que le mode dual,
+# mais une seule destination Filebeat.
+services:
+  filebeat:
+    volumes:
+      - ./dev/generated/filebeat-single/filebeat-logs.yml:/usr/share/filebeat-logs/filebeat-logs.yml:ro
+      - ./dev/generated/filebeat-single/filebeat-nginx.yml:/usr/share/filebeat-nginx/filebeat-nginx.yml:ro
+      - ./dev/generated/filebeat-single/filebeat-syslog-tcp.yml:/usr/share/filebeat-syslog-tcp/filebeat-syslog-tcp.yml:ro
+      - ./dev/generated/filebeat-single/filebeat-syslog-udp.yml:/usr/share/filebeat-syslog-udp/filebeat-syslog-udp.yml:ro
+      - ./dev/generated/filebeat-single/filebeat-tcp.yml:/usr/share/filebeat-tcp/filebeat-tcp.yml:ro
