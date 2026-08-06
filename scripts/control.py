@@ -1430,9 +1430,14 @@ def start():
         # still missing? sorry charlie
         if missingAuthFiles:
             malcolmPathPrefix = GetMalcolmPath() + os.sep
-            missingAuthMessage = f'Files relating to authentication and/or secrets are missing: {", ".join([
-                p[len(malcolmPathPrefix) :] if p.startswith(malcolmPathPrefix) else p for p in missingAuthFiles
-            ])}; please run ./scripts/auth_setup to generate them'
+            missingAuthList = ", ".join(
+                p[len(malcolmPathPrefix) :] if p.startswith(malcolmPathPrefix) else p
+                for p in missingAuthFiles
+            )
+            missingAuthMessage = (
+                "Files relating to authentication and/or secrets are missing: "
+                f"{missingAuthList}; please run ./scripts/auth_setup to generate them"
+            )
             DisplayMessage(missingAuthMessage)
             raise Exception(missingAuthMessage)
 
