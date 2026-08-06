@@ -57,7 +57,9 @@ read_state() {
         exit 1
     }
     PROFILE="malcolm"
-    [[ "$OCULOX_ROLE" == hedgehog ]] && PROFILE="hedgehog"
+    if [[ "$OCULOX_ROLE" == hedgehog ]]; then
+        PROFILE="hedgehog"
+    fi
 }
 
 parse_role_options() {
