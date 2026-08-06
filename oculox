@@ -63,19 +63,65 @@ read_state() {
 }
 
 ensure_runtime_bind_paths() {
-    # Docker Compose deliberately refuses to create this database bind mount.
-    # It is runtime data excluded from Git, so a fresh clone needs the empty
-    # directory before PostgreSQL can be created. Never alter an existing one.
-    local postgres_dir="$PROJECT_DIR/postgres"
+    # The official compose disables implicit host-path creation for bind mounts.
+    # These paths are mutable runtime data excluded from Git. Create only paths
+    # absent from a fresh Principal clone; never change existing data or modes.
+    local deployment_role="${OCULOX_ROLE:-${ROLE:-}}"
+    local relative_path absolute_path
+    local -a principal_dirs=(
+        "arkime/parsers"
+        "arkime/rules"
+        "filescan-logs"
+        "netbox/config"
+        "netbox/custom-plugins"
+        "netbox/custom-scripts"
+        "netbox/media"
+        "netbox/preload"
+        "nginx/ca-trust"
+        "nginx/certs"
+        "opensearch"
+        "opensearch-backup"
+        "pcap"
+        "pcap/upload"
+        "strelka/config/backend"
+        "strelka/config/frontend"
+        "strelka/config/manager"
+        "suricata-logs"
+        "suricata/include-configs"
+        "suricata/rules"
+        "valkey"
+        "yara/rules"
+        "zeek-logs"
+        "zeek-logs/extract_files"
+        "zeek-logs/extract_files/filescan"
+        "zeek-logs/live"
+        "zeek-logs/upload"
+        "zeek/custom"
+        "zeek/intel"
+    )
 
-    if [[ -e "$postgres_dir" && ! -d "$postgres_dir" ]]; then
-        printf "Chemin de données PostgreSQL invalide : %s n'est pas un répertoire.\n" "$postgres_dir" >&2
+    [[ "$deployment_role" == principal ]] || return 0
+
+    for relative_path in "${principal_dirs[@]}"; do
+        absolute_path="$PROJECT_DIR/$relative_path"
+        if [[ -e "$absolute_path" && ! -d "$absolute_path" ]]; then
+            printf "Chemin runtime invalide : %s n'est pas un répertoire.\n" "$absolute_path" >&2
+            exit 1
+        fi
+        if [[ ! -d "$absolute_path" ]]; then
+            install -d -m 0775 "$absolute_path"
+            printf 'Répertoire runtime initialisé : %s\n' "$absolute_path"
+        fi
+    done
+
+    absolute_path="$PROJECT_DIR/postgres"
+    if [[ -e "$absolute_path" && ! -d "$absolute_path" ]]; then
+        printf "Chemin de données PostgreSQL invalide : %s n'est pas un répertoire.\n" "$absolute_path" >&2
         exit 1
     fi
-
-    if [[ ! -d "$postgres_dir" ]]; then
-        install -d -m 0700 "$postgres_dir"
-        printf 'Répertoire de données PostgreSQL initialisé : %s\n' "$postgres_dir"
+    if [[ ! -d "$absolute_path" ]]; then
+        install -d -m 0700 "$absolute_path"
+        printf 'Répertoire de données PostgreSQL initialisé : %s\n' "$absolute_path"
     fi
 }
 

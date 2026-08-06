@@ -59,9 +59,10 @@ Cette commande réalise la chaîne suivante :
 4. les valeurs `PUID=0` et `PGID=0`, lorsqu'elles proviennent des valeurs par
    défaut de l'exécution avec `sudo`, sont remplacées par l'UID et le GID de cet
    opérateur ; une identité non nulle choisie dans l'assistant est conservée ;
-5. le répertoire de données PostgreSQL `postgres/`, exclu du dépôt Git, est
-   créé vide avec les permissions `0700` lorsqu'il n'existe pas ; un répertoire
-   déjà existant n'est jamais modifié ;
+5. les répertoires persistants et de travail nécessaires aux montages Docker du
+   profil Principal sont créés lorsqu'ils n'existent pas ; `postgres/` reçoit
+   les permissions `0700`, les autres répertoires `0775`, et un répertoire déjà
+   existant n'est jamais modifié ;
 6. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
 7. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
 8. l'autorité Oculox et le certificat serveur sont générés localement ;
@@ -75,11 +76,13 @@ les étapes Oculox suivantes s'exécutent volontairement avec le compte de
 l'opérateur. Elle évite qu'une installation neuve échoue sur un fichier
 `config/process.env` appartenant à `root`.
 
-Le dossier `postgres/` suit le même principe de séparation : il contient les
-données persistantes de PostgreSQL et ne doit jamais être versionné. Docker
-Compose est configuré pour ne pas le créer implicitement. Le lanceur Oculox le
-crée donc seulement sur une installation neuve, avant le premier démarrage, et
-refuse de démarrer si ce chemin est remplacé par un fichier.
+Les dossiers `postgres/`, `valkey/`, `opensearch/`, `pcap/`, `zeek-logs/`,
+`suricata-logs/` et les autres répertoires de travail suivent le même principe
+de séparation : ils contiennent des données persistantes ou générées et ne
+doivent jamais être versionnés. Docker Compose est configuré pour ne pas les
+créer implicitement. Le lanceur Oculox les crée donc seulement sur une
+installation neuve, avant le premier démarrage, et refuse de démarrer si un de
+ces chemins est remplacé par un fichier.
 
 Les mots de passe ne sont jamais fournis comme arguments. Ils restent gérés par
 l'assistant officiel. Si l'installation de Docker exige un redémarrage ou une
