@@ -1,6 +1,6 @@
 # OCULOX
 
-![](./docs/images/logo/Talixman_logo.png)
+![](./docs/images/logo/Oculox_logo.png)
 
 OCULOX is a powerful network traffic analysis tool suite designed with the following goals in mind:
 
