@@ -391,14 +391,14 @@ class HTTPHandler(SimpleHTTPRequestHandler):
                     with footer(cls='footer bg-light').add(div(cls='container')).add(div(cls='row')):
                         with div(cls="col-lg-6 h-100 text-center text-lg-start my-auto"):
                             p(
-                                "Malcolm © 2026 Battelle Energy Alliance, LLC.",
+                                "Oculox — Fichiers extraits et éléments d'investigation",
                                 cls="text-muted small mb-4 mb-lg-0",
                             )
 
                         with div(cls="col-lg-6 h-100 text-center text-lg-end my-auto").add(ul(cls="list-inline mb-0")):
                             if showMalcolmCols:
                                 li(cls="list-inline-item").add(a(href=f'/', target="_blank")).add(
-                                    i(cls="bi bi-house fs-3", title="Malcolm")
+                                    i(cls="bi bi-house fs-3", title="Oculox")
                                 )
                                 li(cls="list-inline-item").add(a(href=f'/readme/', target="_blank")).add(
                                     i(cls="bi bi-question-circle fs-3", title="Documentation")
@@ -412,9 +412,6 @@ class HTTPHandler(SimpleHTTPRequestHandler):
                                 li(cls="list-inline-item").add(a(href=f'/arkime/sessions/', target="_blank")).add(
                                     i(cls="bi bi-table fs-3", title="Arkime")
                                 )
-                            li(cls="list-inline-item").add(
-                                a(href=f'https://github.com/idaholab/Malcolm/', target="_blank")
-                            ).add(i(cls="bi-github fs-3", title="GitHub"))
 
                     script(type="text/javascript", src=f"{assetsDirRespReplacer}js/bootstrap.bundle.min.js")
                     script(type="text/javascript", src=f"{assetsDirRespReplacer}js/scripts.js")

@@ -82,8 +82,8 @@ ENV FILESCAN_PRUNE_INTERVAL_SECONDS=$FILESCAN_PRUNE_INTERVAL_SECONDS
 ADD filescan/python-filescan/ /install-filescan/
 ADD nginx/landingpage/css "${FILESCAN_HTTP_SERVER_ASSETS_DIR}/css"
 ADD nginx/landingpage/js "${FILESCAN_HTTP_SERVER_ASSETS_DIR}/js"
-ADD --chmod=644 docs/images/logo/Malcolm_background.png "${FILESCAN_HTTP_SERVER_ASSETS_DIR}/assets/img/bg-masthead.png"
-ADD --chmod=644 docs/images/icon/favicon.ico "${FILESCAN_HTTP_SERVER_ASSETS_DIR}/favicon.ico"
+ADD --chmod=644 docs/images/logo/logo_Oculox.png "${FILESCAN_HTTP_SERVER_ASSETS_DIR}/assets/img/Oculox_logo.png"
+ADD --chmod=644 dev/branding/oculox-icon.png "${FILESCAN_HTTP_SERVER_ASSETS_DIR}/favicon.ico"
 ADD --chmod=755 filescan/scripts/web-ui-asset-download.sh /usr/local/bin/
 
 RUN set -e ; \

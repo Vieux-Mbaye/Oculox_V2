@@ -1,5 +1,5 @@
 <?php
-# head.php — Talixman OT Security — User Management
+# Interface Oculox de gestion des comptes locaux
 include_once ('tools/util.php');
 if (!isset($ini)) {
     $ini = read_config();
@@ -11,9 +11,8 @@ error_reporting(E_ALL);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?php echo htmlspecialchars($ini['app_title'] ?? 'Talixman — User Management'); ?></title>
-<link rel="icon"          type="image/x-icon" href="X.ico">
-<link rel="shortcut icon"                     href="X.ico">
+<title><?php echo htmlspecialchars($ini['app_title'] ?? 'Oculox — Gestion des comptes'); ?></title>
+<link rel="icon" type="image/png" href="oculox-icon.png">
 
 <!-- Bootstrap CSS conservé pour la logique PHP -->
 <link rel="stylesheet" href="bootstrap.css" crossorigin="anonymous">
@@ -29,12 +28,12 @@ error_reporting(E_ALL);
    VARIABLES
    ══════════════════════════════════════════════════════ */
 :root {
-    --tx-b:      #6b1d3a;   /* bordeaux */
-    --tx-b2:     #8a2449;
-    --tx-b3:     #4a1228;
-    --tx-o:      #e05a1e;   /* orange */
-    --tx-navy:   #111820;
-    --tx-bg:     #f2f1ef;
+    --tx-b:      #008fc7;   /* bleu Oculox */
+    --tx-b2:     #00b9d8;
+    --tx-b3:     #005a83;
+    --tx-o:      #18a66a;   /* accent opérationnel */
+    --tx-navy:   #07131f;
+    --tx-bg:     #eef4f7;
     --tx-sur:    #ffffff;
     --tx-sur2:   #f9f8f7;
     --tx-txt:    #1a1a1a;
@@ -44,7 +43,7 @@ error_reporting(E_ALL);
     --tx-bord2:  #ccc9c4;
     --tx-nh:     58px;      /* navbar height */
     --tx-r:      10px;      /* radius */
-    --tx-shadow: rgba(107,29,58,.1);
+    --tx-shadow: rgba(0,95,135,.12);
 }
 [data-theme="dark"] {
     --tx-bg:    #0d1520;
@@ -188,10 +187,10 @@ body {
     margin-bottom: 24px !important;
     transition:    box-shadow .2s;
 }
-.panel:hover { box-shadow: 0 8px 36px rgba(107,29,58,.14) !important; }
+.panel:hover { box-shadow: 0 8px 36px rgba(0,95,135,.16) !important; }
 
 .panel-default>.panel-heading {
-    background:    linear-gradient(135deg,var(--tx-b),var(--tx-b3)) !important;
+    background:    var(--tx-b3) !important;
     color:         #fff !important;
     border:        none !important;
     padding:       15px 22px !important;
@@ -279,7 +278,7 @@ h3::before {
 }
 .form-control:focus {
     border-color:  var(--tx-b) !important;
-    box-shadow:    0 0 0 3px rgba(107,29,58,.12) !important;
+    box-shadow:    0 0 0 3px rgba(0,143,199,.14) !important;
     outline:       none !important;
 }
 .form-control::placeholder { color:var(--tx-muted) !important; }
@@ -324,16 +323,16 @@ h3::before {
 .btn-primary,
 input[type="submit"],
 button[type="submit"] {
-    background:  linear-gradient(135deg,var(--tx-b),var(--tx-b3)) !important;
+    background:  var(--tx-b3) !important;
     color:       #fff !important;
-    box-shadow:  0 2px 10px rgba(107,29,58,.28) !important;
+    box-shadow:  0 2px 10px rgba(0,95,135,.28) !important;
 }
 .btn-primary:hover:not(:disabled),
 input[type="submit"]:hover,
 button[type="submit"]:hover {
-    background:  linear-gradient(135deg,var(--tx-b2),var(--tx-b)) !important;
+    background:  var(--tx-b) !important;
     transform:   translateY(-1px) !important;
-    box-shadow:  0 5px 18px rgba(107,29,58,.38) !important;
+    box-shadow:  0 5px 18px rgba(0,95,135,.38) !important;
 }
 .btn-primary:active { transform:translateY(0) !important; }
 .btn-default {
@@ -346,7 +345,7 @@ button[type="submit"]:hover {
     color:        var(--tx-b) !important;
 }
 .btn-danger {
-    background:  linear-gradient(135deg,#c0392b,#922b21) !important;
+    background:  #a93226 !important;
     color:       #fff !important;
     box-shadow:  0 2px 8px rgba(192,57,43,.22) !important;
 }
@@ -370,7 +369,7 @@ button[type="submit"]:hover {
     display:       flex;
     align-items:   center;
     gap:           8px;
-    background:    linear-gradient(135deg,var(--tx-b),var(--tx-b3));
+    background:    var(--tx-b3);
     color:         #fff;
     border:        none;
     border-radius: 50px;
@@ -380,15 +379,15 @@ button[type="submit"]:hover {
     letter-spacing:.04em;
     text-transform:uppercase;
     cursor:        pointer;
-    box-shadow:    0 4px 20px rgba(107,29,58,.35);
+    box-shadow:    0 4px 20px rgba(0,95,135,.35);
     text-decoration:none;
     transition:    all .25s;
     z-index:       888;
 }
 .tx-logout:hover {
-    background:    linear-gradient(135deg,var(--tx-b2),var(--tx-b));
+    background:    var(--tx-b);
     transform:     translateY(-2px);
-    box-shadow:    0 8px 28px rgba(107,29,58,.45);
+    box-shadow:    0 8px 28px rgba(0,95,135,.45);
     color:         #fff;
     text-decoration:none;
 }
@@ -426,8 +425,8 @@ button[type="submit"]:hover {
 .table-striped>tbody>tr:nth-of-type(odd)>td {
     background: var(--tx-sur2) !important;
 }
-.table>tbody>tr:hover>td { background:#f5ecf0 !important; cursor:pointer; }
-[data-theme="dark"] .table>tbody>tr:hover>td { background:#2a1825 !important; }
+.table>tbody>tr:hover>td { background:#e7f5fa !important; cursor:pointer; }
+[data-theme="dark"] .table>tbody>tr:hover>td { background:#12354a !important; }
 
 /* ══════════════════════════════════════════════════════
    ALERTES
@@ -471,7 +470,7 @@ button[type="submit"]:hover {
 
 <!-- Anti-flash thème -->
 <script>(function(){
-    var t=localStorage.getItem('talixman-theme')||'light';
+    var t=localStorage.getItem('oculox-theme')||'light';
     document.documentElement.setAttribute('data-theme',t);
 })();</script>
 
@@ -485,8 +484,8 @@ button[type="submit"]:hover {
 
     <!-- Logo image uniquement -->
     <img class="tx-nav-logo"
-         src="Talixman_logo.png"
-         alt="Talixman"
+         src="Oculox_logo.png"
+         alt="Oculox"
          onerror="this.style.display='none'">
 
     <div class="tx-sep"></div>
@@ -529,12 +528,12 @@ document.addEventListener('DOMContentLoaded',function(){
     /* Toggle thème */
     var cb=document.getElementById('tx-cb');
     if(cb){
-        var saved=localStorage.getItem('talixman-theme')||'light';
+        var saved=localStorage.getItem('oculox-theme')||'light';
         cb.checked=(saved==='dark');
         cb.addEventListener('change',function(){
             var t=this.checked?'dark':'light';
             document.documentElement.setAttribute('data-theme',t);
-            localStorage.setItem('talixman-theme',t);
+            localStorage.setItem('oculox-theme',t);
         });
     }
 

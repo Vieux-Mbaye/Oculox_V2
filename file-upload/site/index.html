@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="upload/X.ico" />
-    <title>File Uploader</title>
+    <link rel="icon" type="image/png" href="upload/oculox-icon.png" />
+    <title>Oculox — Import de données</title>
 
     <!-- FilePond & Tagger (chemins originaux conservés) -->
     <link href="upload/filepond/dist/filepond.css" rel="stylesheet">
@@ -19,15 +19,15 @@
             --bg-card:          #ffffff;
             --bg-input:         #ffffff;
             --bg-drop:          #fafafa;
-            --bg-drop-hover:    #fdf5f8;
+            --bg-drop-hover:    #e9f7fb;
             --bg-file:          #ffffff;
-            --bg-ext:           #f5eaee;
+            --bg-ext:           #e4f4f8;
             --text:             #1e2a38;
             --text-muted:       #888888;
             --border:           #d0d0d0;
             --border-file:      #e8e8e8;
-            --primary:          #6b1d3a;
-            --primary-h:        #8a2449;
+            --primary:          #008fc7;
+            --primary-h:        #006e9d;
             --prog-bg:          #eeeeee;
             --btn-dis-bg:       #cccccc;
             --btn-dis-txt:      #666666;
@@ -47,13 +47,13 @@
             --bg-drop:          #1c2540;
             --bg-drop-hover:    #22304a;
             --bg-file:          #1c2540;
-            --bg-ext:           #2d1a26;
+            --bg-ext:           #12354a;
             --text:             #e2e8f0;
             --text-muted:       #94a3b8;
             --border:           #2d3a55;
             --border-file:      #2d3a55;
-            --primary:          #c05080;
-            --primary-h:        #e06090;
+            --primary:          #36c8e8;
+            --primary-h:        #68d8ee;
             --prog-bg:          #2d3a55;
             --btn-dis-bg:       #2d3a55;
             --btn-dis-txt:      #64748b;
@@ -62,7 +62,7 @@
             --tooltip-border:   #2d3a55;
             --tooltip-txt:      #e2e8f0;
             --toggle-bg:        #2d3a55;
-            --toggle-knob:      #c05080;
+            --toggle-knob:      #36c8e8;
         }
 
         /* ===== RESET ===== */
@@ -82,8 +82,8 @@
 
         /* ===== NAVBAR ===== */
         .navbar {
-            background-color: var(--bg);
-            border-bottom: 1px solid var(--border);
+            background-color: #07131f;
+            border-bottom: 1px solid #17344a;
             padding: 0.75rem 1.5rem;
             position: sticky;
             top: 0;
@@ -96,13 +96,8 @@
         }
 
         .navbar-brand img {
-            height: 36px;
+            height: 42px;
             object-fit: contain;
-            transition: filter 0.3s ease;
-        }
-
-        [data-theme="dark"] .navbar-brand img {
-            filter: brightness(0) invert(1);
         }
 
         /* ===== TOGGLE ===== */
@@ -154,18 +149,15 @@
         .logo-wrap {
             display: flex;
             justify-content: center;
-            padding: 36px 20px 0;
+            padding: 36px 20px;
+            background-color: #07131f;
+            border-bottom: 1px solid #17344a;
         }
 
         .logo-wrap img {
             width: 50%;
             max-width: 380px;
             height: auto;
-            transition: filter 0.3s ease;
-        }
-
-        [data-theme="dark"] .logo-wrap img {
-            filter: brightness(0) invert(1);
         }
 
         /* ===== TITRE ===== */
@@ -466,7 +458,7 @@
     <!-- ===== NAVBAR ===== -->
     <nav class="navbar">
         <a class="navbar-brand" href="/" target="_self">
-            <img src="upload/Talixman_logo.png" alt="Talixman" />
+            <img src="upload/Oculox_logo.png" alt="Oculox" />
         </a>
         <label class="theme-toggle" for="themeToggle" title="Changer de thème">
             <span>☀️</span>
@@ -480,7 +472,7 @@
 
     <!-- ===== LOGO ===== -->
     <div class="logo-wrap">
-        <img src="upload/Talixman_logo.png" alt="Talixman Cybersecurity Services" />
+        <img src="upload/Oculox_logo.png" alt="Plateforme Oculox" />
     </div>
 
     <h1 class="panel-title">Téléversement d'Artefacts de Trafic Réseau</h1>
@@ -547,7 +539,7 @@
     const toggle = document.getElementById('themeToggle');
     const html   = document.documentElement;
 
-    const saved = localStorage.getItem('talixman-theme');
+    const saved = localStorage.getItem('oculox-theme');
     if (saved === 'dark') {
         html.setAttribute('data-theme', 'dark');
         toggle.checked = true;
@@ -556,7 +548,7 @@
     toggle.addEventListener('change', () => {
         const isDark = toggle.checked;
         html.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        localStorage.setItem('talixman-theme', isDark ? 'dark' : 'light');
+        localStorage.setItem('oculox-theme', isDark ? 'dark' : 'light');
     });
 
     /* ===== LOGIQUE PRINCIPALE ===== */

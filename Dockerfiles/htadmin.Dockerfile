@@ -84,8 +84,8 @@ COPY --from=ghcr.io/mmguero-dev/gostatic --chmod=755 /goStatic /usr/bin/goStatic
 ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
 ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
 ADD --chmod=755 container-health-scripts/htadmin.sh /usr/local/bin/container_health.sh
-ADD --chmod=644 docs/images/favicon/X.ico /var/www/htadmin/X.ico
-ADD --chmod=644 docs/images/icon/Talixman_logo.png /var/www/htadmin/Talixman_logo.png
+ADD --chmod=644 dev/branding/oculox-icon.png /var/www/htadmin/oculox-icon.png
+ADD --chmod=644 docs/images/logo/logo_Oculox.png /var/www/htadmin/Oculox_logo.png
 ADD --chmod=644 htadmin/supervisord.conf /supervisord.conf
 ADD --chmod=755 htadmin/htadmin.sh /usr/local/bin/
 ADD --chmod=644 htadmin/src/bootstrap.* /var/www/htadmin/

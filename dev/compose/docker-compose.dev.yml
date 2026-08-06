@@ -34,12 +34,19 @@ services:
 
   filescan:
     restart: unless-stopped
+    volumes:
+      - ./filescan/scripts/extracted_files_http_server.py:/usr/local/bin/extracted_files_http_server.py:ro
+      - ./dev/branding/oculox-icon.png:/opt/assets/favicon.ico:ro
 
   freq:
     restart: unless-stopped
 
   htadmin:
     restart: unless-stopped
+    volumes:
+      - ./htadmin/src/includes/head.php:/var/www/htadmin/includes/head.php:ro
+      - ./docs/images/logo/logo_Oculox.png:/var/www/htadmin/Oculox_logo.png:ro
+      - ./dev/branding/oculox-icon.png:/var/www/htadmin/oculox-icon.png:ro
 
   keycloak:
     restart: unless-stopped
@@ -66,6 +73,18 @@ services:
 
   nginx-proxy:
     restart: unless-stopped
+    entrypoint:
+      - /sbin/tini
+      - --
+      - /usr/local/bin/docker-uid-gid-setup.sh
+      - /opt/oculox-branding/install-nginx-branding.sh
+    volumes:
+      - ./dev/branding:/opt/oculox-branding:ro
+      - ./nginx/landingpage:/opt/oculox-branding/landingpage:ro
+      - ./docs/images/logo/logo_Oculox.png:/opt/oculox-branding/Oculox_logo.png:ro
+      - ./nginx/nginx_htadmin_global_replacements.conf:/etc/nginx/nginx_htadmin_global_replacements.conf:ro
+      - ./nginx/nginx_netbox_location.conf:/etc/nginx/nginx_netbox_location.conf:ro
+      - ./nginx/nginx_image_aliases.conf:/etc/nginx/nginx_image_aliases.conf:ro
 
   opensearch:
     restart: unless-stopped
@@ -96,6 +115,10 @@ services:
 
   upload:
     restart: unless-stopped
+    volumes:
+      - ./file-upload/site/index.html:/var/www/upload/index.html:ro
+      - ./docs/images/logo/logo_Oculox.png:/var/www/upload/Oculox_logo.png:ro
+      - ./dev/branding/oculox-icon.png:/var/www/upload/oculox-icon.png:ro
 
   valkey:
     restart: unless-stopped

@@ -5,10 +5,10 @@
         <base target="_blank">
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <meta name="description" content="" />
         <meta name="author" content="" />
-        <title>Talixman OT Security</title>
-        <link rel="icon" type="image/x-icon" href="assets/X.ico" />
+        <meta name="description" content="Portail Oculox de supervision et d'investigation de la sécurité OT" />
+        <title>Oculox | Sécurité OT</title>
+        <link rel="icon" type="image/png" href="assets/oculox-icon.png" />
         <link href="css/bootstrap-icons.css" rel="stylesheet" type="text/css" />
 
         <style>
@@ -57,8 +57,8 @@
 
             /* ===== NAVBAR ===== */
             .navbar {
-                background-color: var(--bg);
-                border-bottom: 1px solid var(--border);
+                background-color: #07131f;
+                border-bottom: 1px solid #17344a;
                 padding: 0.75rem 1.5rem;
                 position: sticky;
                 top: 0;
@@ -76,7 +76,7 @@
             }
 
             .navbar-brand img {
-                height: 36px;
+                height: 42px;
                 object-fit: contain;
             }
 
@@ -141,26 +141,21 @@
 
             /* ===== MASTHEAD ===== */
             .masthead {
-                background-color: var(--bg) !important;
+                background-color: #07131f !important;
                 background-image: none !important;
-                padding: 3rem 1.5rem 2.5rem;
+                padding: 2.75rem 1.5rem;
                 text-align: center;
-                border-bottom: 1px solid var(--border);
+                border-bottom: 1px solid #17344a;
                 transition: background-color 0.3s ease, border-color 0.3s ease;
             }
 
             .masthead img {
-                max-width: 320px;
+                max-width: 430px;
                 width: 100%;
                 height: auto;
                 object-fit: contain;
                 display: block;
                 margin: 0 auto;
-                /* invert logo in dark mode for visibility */
-            }
-
-            [data-theme="dark"] .masthead img {
-                filter: brightness(0) invert(1);
             }
 
             /* ===== SECTION ===== */
@@ -192,7 +187,7 @@
             /* ===== CARDS ===== */
             .feature-card {
                 background-color: var(--bg-card);
-                border-radius: 12px;
+                border-radius: 8px;
                 padding: 2rem 1.5rem;
                 text-align: center;
                 box-shadow: var(--shadow-sm);
@@ -297,7 +292,7 @@
         <nav class="navbar">
             <div class="navbar-inner">
                 <a class="navbar-brand" href="#" target="_self">
-                    <img src="assets/img/Talixman_logo.png" alt="Talixman" />
+                    <img src="assets/img/Oculox_logo.png" alt="Oculox" />
                 </a>
                 <label class="theme-toggle" for="themeToggle" title="Changer de thème">
                     <span class="toggle-icon" id="themeIcon">☀️</span>
@@ -312,7 +307,7 @@
 
         <!-- Masthead -->
         <header class="masthead">
-            <img src="assets/img/Talixman_logo.png" alt="Talixman Cybersecurity Services" />
+            <img src="assets/img/Oculox_logo.png" alt="Plateforme Oculox" />
         </header>
 
         <!-- Features -->
@@ -331,7 +326,7 @@
                 <div class="feature-card">
                     <a href="/arkime/">
                         <img class="feature-icon" src="assets/img/Arkime.png" alt="Arkime"/>
-                        <h3>Examiner une Session</h3>
+                        <h3>Examiner une session</h3>
                     </a>
                     <p>Examinez en détail la session, y compris la charge utile complète des paquets.</p>
                 </div>
@@ -347,7 +342,7 @@
                 <div class="feature-card">
                     <a href="/arkime/cyberchef.html">
                         <img class="feature-icon" src="assets/img/cyberchef.svg" alt="CyberChef" />
-                        <h3>Convertir des Données</h3>
+                        <h3>Convertir des données</h3>
                     </a>
                     <p>Analysez et manipulez vos données grâce à cette application web dédiée au chiffrement, à l'encodage, à la compression et à l'analyse de données.</p>
                 </div>
@@ -359,7 +354,7 @@
                             <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
                             <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
                         </svg>
-                        <h3>File Uploader</h3>
+                        <h3>Importer des données</h3>
                     </a>
                     <p>Téléversez des fichiers PCAP précédemment capturés ou des journaux Zeek archivés pour une analyse.</p>
                 </div>
@@ -370,7 +365,7 @@
                         <svg class="icon-person" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                             <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
                         </svg>
-                        <h3>User Management</h3>
+                        <h3>Gérer les comptes</h3>
                     </a>
                     <p>L'administrateur peut gérer les utilisateurs de cette plateforme : créer, modifier ou supprimer des comptes.</p>
                 </div>
@@ -380,7 +375,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>&copy; 2026 Talixman Group - Cybersecurity Services</p>
+            <p>&copy; 2026 Oculox - Plateforme de supervision de la sécurité OT</p>
         </footer>
 
         <script src="js/bootstrap.bundle.min.js"></script>
@@ -391,7 +386,7 @@
             const html   = document.documentElement;
 
             // Restore saved preference
-            const saved = localStorage.getItem('talixman-theme');
+            const saved = localStorage.getItem('oculox-theme');
             if (saved === 'dark') {
                 html.setAttribute('data-theme', 'dark');
                 toggle.checked = true;
@@ -400,7 +395,7 @@
             toggle.addEventListener('change', () => {
                 const isDark = toggle.checked;
                 html.setAttribute('data-theme', isDark ? 'dark' : 'light');
-                localStorage.setItem('talixman-theme', isDark ? 'dark' : 'light');
+                localStorage.setItem('oculox-theme', isDark ? 'dark' : 'light');
             });
         </script>
     </body>

@@ -34,9 +34,10 @@ Exploitation :
   ./oculox validate
   ./oculox collector-bundle <nom-collecteur> <nom-DNS-ou-IP-principal> [sortie]
 
-L'installation conserve l'interface officielle Malcolm. Les secrets
-d'authentification sont demandés interactivement et ne sont jamais placés
-dans la ligne de commande ni dans Git.
+L'installation utilise les composants officiels compatibles et applique
+automatiquement l'interface Oculox. Les secrets d'authentification sont
+demandés interactivement et ne sont jamais placés dans la ligne de commande
+ni dans Git.
 EOF
 }
 
@@ -177,7 +178,7 @@ case "$COMMAND" in
     install)
         parse_role_options "$@"
         protect_existing_role
-        printf 'Étape 1/4 - Installation système et configuration officielle Malcolm\n'
+        printf 'Étape 1/4 - Installation système et configuration du socle Oculox\n'
         # The complete official installer requires root on Linux and therefore
         # creates config/*.env as root. Return those generated files to the
         # operator before the unprivileged Oculox preparation reads them.

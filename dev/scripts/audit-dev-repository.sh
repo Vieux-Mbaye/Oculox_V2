@@ -103,6 +103,12 @@ else
     fail 'configuration Docker Compose invalide'
 fi
 
+if ./dev/tests/test-branding.sh; then
+    pass 'identité visuelle Oculox et déploiement validés'
+else
+    fail 'identité visuelle Oculox invalide'
+fi
+
 printf '\n=== Protection Des Données Locales ===\n'
 ignore_failures=0
 for ignored_path in \
