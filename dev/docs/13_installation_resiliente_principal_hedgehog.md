@@ -59,16 +59,15 @@ Cette commande réalise la chaîne suivante :
 4. les valeurs `PUID=0` et `PGID=0`, lorsqu'elles proviennent des valeurs par
    défaut de l'exécution avec `sudo`, sont remplacées par l'UID et le GID de cet
    opérateur ; une identité non nulle choisie dans l'assistant est conservée ;
-5. les répertoires persistants et de travail nécessaires aux montages Docker du
-   profil Principal sont créés lorsqu'ils n'existent pas ; `postgres/` reçoit
-   les permissions `0700`, les autres répertoires `0775`, et un répertoire déjà
-   existant n'est jamais modifié ;
+5. la configuration Compose officielle et la surcharge de résilience Oculox
+   sont fusionnées dans un fichier local sous `dev/generated/` ;
 6. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
 7. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
 8. l'autorité Oculox et le certificat serveur sont générés localement ;
 9. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
 10. les configurations Principal et Hedgehog sont validées sans les démarrer ;
-11. les images sont récupérées et le profil Principal complet est démarré.
+11. les images sont récupérées et le script officiel `scripts/start` démarre le
+    profil Principal complet.
 
 La reprise de propriété de `config/` est nécessaire parce que l'installation
 système officielle exige les privilèges administrateur sous Linux, alors que
@@ -79,10 +78,14 @@ l'opérateur. Elle évite qu'une installation neuve échoue sur un fichier
 Les dossiers `postgres/`, `valkey/`, `opensearch/`, `pcap/`, `zeek-logs/`,
 `suricata-logs/` et les autres répertoires de travail suivent le même principe
 de séparation : ils contiennent des données persistantes ou générées et ne
-doivent jamais être versionnés. Docker Compose est configuré pour ne pas les
-créer implicitement. Le lanceur Oculox les crée donc seulement sur une
-installation neuve, avant le premier démarrage, et refuse de démarrer si un de
-ces chemins est remplacé par un fichier.
+doivent jamais être versionnés. Docker Compose ne crée pas implicitement tous
+les montages bind. Le lanceur Oculox délègue donc le démarrage au script
+officiel `scripts/start`, après avoir produit la configuration Compose
+effective. Ce script amont crée les répertoires et fichiers techniques attendus
+par Malcolm, notamment les fichiers `.opensearch.*.curlrc`, les fichiers Nginx
+et les chemins de données. Cette délégation évite de maintenir une liste locale
+incomplète de montages et supprime les erreurs de type `bind source path does
+not exist` lors d'une installation neuve.
 
 Les mots de passe ne sont jamais fournis comme arguments. Ils restent gérés par
 l'assistant officiel. Si l'installation de Docker exige un redémarrage ou une
@@ -150,10 +153,14 @@ Les mêmes commandes sont utilisées sur les deux rôles :
 ```
 
 `start`, `status` et `stop` lisent le rôle conservé localement dans
-`dev/generated/deployment.env`. Elles chargent toujours le Compose officiel et
-la surcharge Oculox. Il ne faut donc pas remplacer `./oculox start` par un
-`docker compose up` isolé, qui oublierait les certificats et la deuxième instance
-Logstash.
+`dev/generated/deployment.env`. Au démarrage, `oculox` génère
+`dev/generated/docker-compose.runtime.yml` en fusionnant le Compose officiel et
+la surcharge Oculox, puis appelle `scripts/start` avec ce fichier. Les
+préparations officielles de Malcolm sont ainsi conservées sans perdre la seconde
+instance Logstash ni les configurations Filebeat résilientes. Le nom du projet
+Compose reste dérivé du nom du clone afin que `start`, `status`, `logs` et
+`stop` ciblent toujours les mêmes conteneurs. Il ne faut donc pas remplacer
+`./oculox start` par un `docker compose up` isolé.
 
 `restart` et `logs` acceptent un ou plusieurs noms de services. Sans nom,
 `restart` redémarre le profil complet et `logs` affiche les 200 dernières lignes

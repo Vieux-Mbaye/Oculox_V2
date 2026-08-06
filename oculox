@@ -5,6 +5,8 @@ set -euo pipefail
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_OVERRIDE="${PROJECT_DIR}/dev/compose/docker-compose.dev.yml"
 STATE_FILE="${PROJECT_DIR}/dev/generated/deployment.env"
+RUNTIME_COMPOSE_FILE="${PROJECT_DIR}/dev/generated/docker-compose.runtime.yml"
+COMPOSE_PROJECT_NAME="$(basename "$PROJECT_DIR" | tr '[:upper:]' '[:lower:]')"
 
 cd "$PROJECT_DIR"
 
@@ -40,10 +42,26 @@ EOF
 
 compose() {
     docker compose \
+        --project-name "$COMPOSE_PROJECT_NAME" \
         --project-directory "$PROJECT_DIR" \
         -f "$PROJECT_DIR/docker-compose.yml" \
         -f "$COMPOSE_OVERRIDE" \
         "$@"
+}
+
+render_runtime_compose() {
+    # Render the official Compose file together with the Oculox resilience
+    # overlay. The result contains absolute bind paths, so the upstream
+    # lifecycle script can validate and initialize its normal runtime paths.
+    install -d -m 0700 "$PROJECT_DIR/dev/generated"
+    compose --profile "$PROFILE" config > "$RUNTIME_COMPOSE_FILE"
+    chmod 0600 "$RUNTIME_COMPOSE_FILE"
+}
+
+official_start() {
+    render_runtime_compose
+    COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+        ./scripts/start -f "$RUNTIME_COMPOSE_FILE" -p "$PROFILE"
 }
 
 read_state() {
@@ -59,69 +77,6 @@ read_state() {
     PROFILE="malcolm"
     if [[ "$OCULOX_ROLE" == hedgehog ]]; then
         PROFILE="hedgehog"
-    fi
-}
-
-ensure_runtime_bind_paths() {
-    # The official compose disables implicit host-path creation for bind mounts.
-    # These paths are mutable runtime data excluded from Git. Create only paths
-    # absent from a fresh Principal clone; never change existing data or modes.
-    local deployment_role="${OCULOX_ROLE:-${ROLE:-}}"
-    local relative_path absolute_path
-    local -a principal_dirs=(
-        "arkime/parsers"
-        "arkime/rules"
-        "filescan-logs"
-        "netbox/config"
-        "netbox/custom-plugins"
-        "netbox/custom-scripts"
-        "netbox/media"
-        "netbox/preload"
-        "nginx/ca-trust"
-        "nginx/certs"
-        "opensearch"
-        "opensearch-backup"
-        "pcap"
-        "pcap/upload"
-        "strelka/config/backend"
-        "strelka/config/frontend"
-        "strelka/config/manager"
-        "suricata-logs"
-        "suricata/include-configs"
-        "suricata/rules"
-        "valkey"
-        "yara/rules"
-        "zeek-logs"
-        "zeek-logs/extract_files"
-        "zeek-logs/extract_files/filescan"
-        "zeek-logs/live"
-        "zeek-logs/upload"
-        "zeek/custom"
-        "zeek/intel"
-    )
-
-    [[ "$deployment_role" == principal ]] || return 0
-
-    for relative_path in "${principal_dirs[@]}"; do
-        absolute_path="$PROJECT_DIR/$relative_path"
-        if [[ -e "$absolute_path" && ! -d "$absolute_path" ]]; then
-            printf "Chemin runtime invalide : %s n'est pas un répertoire.\n" "$absolute_path" >&2
-            exit 1
-        fi
-        if [[ ! -d "$absolute_path" ]]; then
-            install -d -m 0775 "$absolute_path"
-            printf 'Répertoire runtime initialisé : %s\n' "$absolute_path"
-        fi
-    done
-
-    absolute_path="$PROJECT_DIR/postgres"
-    if [[ -e "$absolute_path" && ! -d "$absolute_path" ]]; then
-        printf "Chemin de données PostgreSQL invalide : %s n'est pas un répertoire.\n" "$absolute_path" >&2
-        exit 1
-    fi
-    if [[ ! -d "$absolute_path" ]]; then
-        install -d -m 0700 "$absolute_path"
-        printf 'Répertoire de données PostgreSQL initialisé : %s\n' "$absolute_path"
     fi
 }
 
@@ -238,7 +193,6 @@ case "$COMMAND" in
         # preserve any non-zero identity explicitly selected in the TUI.
         sed -i "s/^PUID=0$/PUID=$(id -u)/" "$PROJECT_DIR/config/process.env"
         sed -i "s/^PGID=0$/PGID=$(id -g)/" "$PROJECT_DIR/config/process.env"
-        ensure_runtime_bind_paths
         if [[ "$ROLE" == principal ]]; then
             ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
         else
@@ -264,7 +218,7 @@ EOF
             exit 0
         fi
         compose --profile "$PROFILE" pull
-        compose --profile "$PROFILE" up -d
+        official_start
         ./oculox status
         ;;
     prepare)
@@ -273,8 +227,7 @@ EOF
         ;;
     start)
         read_state
-        ensure_runtime_bind_paths
-        compose --profile "$PROFILE" up -d
+        official_start
         ./oculox status
         ;;
     restart)
