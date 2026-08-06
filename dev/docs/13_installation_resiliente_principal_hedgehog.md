@@ -59,18 +59,27 @@ Cette commande réalise la chaîne suivante :
 4. les valeurs `PUID=0` et `PGID=0`, lorsqu'elles proviennent des valeurs par
    défaut de l'exécution avec `sudo`, sont remplacées par l'UID et le GID de cet
    opérateur ; une identité non nulle choisie dans l'assistant est conservée ;
-5. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
-6. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
-7. l'autorité Oculox et le certificat serveur sont générés localement ;
-8. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
-9. les configurations Principal et Hedgehog sont validées sans les démarrer ;
-10. les images sont récupérées et le profil Principal complet est démarré.
+5. le répertoire de données PostgreSQL `postgres/`, exclu du dépôt Git, est
+   créé vide avec les permissions `0700` lorsqu'il n'existe pas ; un répertoire
+   déjà existant n'est jamais modifié ;
+6. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
+7. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
+8. l'autorité Oculox et le certificat serveur sont générés localement ;
+9. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
+10. les configurations Principal et Hedgehog sont validées sans les démarrer ;
+11. les images sont récupérées et le profil Principal complet est démarré.
 
 La reprise de propriété de `config/` est nécessaire parce que l'installation
 système officielle exige les privilèges administrateur sous Linux, alors que
 les étapes Oculox suivantes s'exécutent volontairement avec le compte de
 l'opérateur. Elle évite qu'une installation neuve échoue sur un fichier
 `config/process.env` appartenant à `root`.
+
+Le dossier `postgres/` suit le même principe de séparation : il contient les
+données persistantes de PostgreSQL et ne doit jamais être versionné. Docker
+Compose est configuré pour ne pas le créer implicitement. Le lanceur Oculox le
+crée donc seulement sur une installation neuve, avant le premier démarrage, et
+refuse de démarrer si ce chemin est remplacé par un fichier.
 
 Les mots de passe ne sont jamais fournis comme arguments. Ils restent gérés par
 l'assistant officiel. Si l'installation de Docker exige un redémarrage ou une
