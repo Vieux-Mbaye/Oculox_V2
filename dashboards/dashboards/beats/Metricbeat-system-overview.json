@@ -2,7 +2,7 @@
   "objects": [
     {
       "attributes": {
-        "description": "System resources overview, including Malcolm sensors and aggregators",
+        "description": "System resources overview, including Oculox sensors and aggregators",
         "hits": 0,
         "kibanaSavedObjectMeta": {
           "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"version\":true,\"highlightAll\":false,\"filter\":[]}"

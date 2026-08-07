@@ -35,7 +35,7 @@ class SystemView(BaseView):
         # Add title and description
         row = self.add_title_and_description(
             "System Configuration",
-            "Configure system settings and behavior for Malcolm.",
+            "Configure system settings and behavior for Oculox.",
         )
 
         # Create sections
@@ -55,7 +55,7 @@ class SystemView(BaseView):
         container, section_row = InputGroup.create(
             self.frame,
             "Initial Setup",
-            "Configure basic Malcolm settings.",
+            "Configure basic Oculox settings.",
             row=row,
             nesting_level=0,
         )

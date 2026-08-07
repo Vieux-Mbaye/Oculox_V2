@@ -116,7 +116,7 @@ class DialogInstallationMenu:
                 return True
             try:
                 label = (
-                    "Malcolm Installation Options"
+                    "Oculox Installation Options"
                     if parent_key is None
                     else (self.ctx.items.get(parent_key).label or parent_key)
                 )

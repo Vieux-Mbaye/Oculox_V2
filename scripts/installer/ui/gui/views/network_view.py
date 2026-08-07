@@ -56,7 +56,7 @@ class NetworkView(BaseView):
         row += 1
 
         # Description
-        Label.description(self.frame, "Configure network settings for Malcolm", row)
+        Label.description(self.frame, "Configure network settings for Oculox", row)
         row += 1
 
         # Network Mode Section
@@ -117,7 +117,7 @@ class NetworkView(BaseView):
         # Description
         Label.section_description(
             self.frame,
-            "Select how Malcolm's containers will connect to the network.",
+            "Select how Oculox containers will connect to the network.",
             row,
         )
         row += 1
@@ -199,7 +199,7 @@ class NetworkView(BaseView):
         row += 1
 
         # Description
-        Label.section_description(self.frame, "Configure custom port mappings for Malcolm services.", row)
+        Label.section_description(self.frame, "Configure custom port mappings for Oculox services.", row)
         row += 1
 
         # Use DisableablePanel for custom ports
@@ -327,7 +327,7 @@ class NetworkView(BaseView):
         row += 1
 
         # Description
-        Label.section_description(self.frame, "Configure remote access settings for Malcolm.", row)
+        Label.section_description(self.frame, "Configure remote access settings for Oculox.", row)
         row += 1
 
         # Create main checkbox panel for remote access

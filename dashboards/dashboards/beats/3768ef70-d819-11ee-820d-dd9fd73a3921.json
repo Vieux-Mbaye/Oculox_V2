@@ -2,7 +2,7 @@
   "objects": [
     {
       "attributes": {
-        "description": "Linux kernel messages (kmsg), including from Malcolm sensors and aggregators",
+        "description": "Linux kernel messages (kmsg), including from Oculox sensors and aggregators",
         "hits": 0,
         "kibanaSavedObjectMeta": {
           "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filter\":[]}"

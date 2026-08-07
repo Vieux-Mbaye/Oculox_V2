@@ -2,7 +2,7 @@
   "objects": [
     {
       "attributes": {
-        "description": "Trees are Malcolm analytics designed to be utilized by analysts to assist in tracking lateral movement across a network.",
+        "description": "Trees are Oculox analytics designed to be utilized by analysts to assist in tracking lateral movement across a network.",
         "hits": 0,
         "kibanaSavedObjectMeta": {
           "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filter\":[]}"

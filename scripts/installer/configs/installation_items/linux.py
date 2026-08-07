@@ -72,7 +72,7 @@ CONFIG_ITEM_INSTALL_DOCKER_IF_MISSING = ConfigItem(
     label="Install Docker if Missing",
     default_value=True,
     validator=lambda x: isinstance(x, bool),
-    question="If Docker not detect on system should Malcolm attempt to install Docker?",
+    question="If Docker is not detected on the system, should Oculox attempt to install Docker?",
     widget_type=WidgetType.CHECKBOX,
     metadata={
         "visible_when_runtime": "docker",

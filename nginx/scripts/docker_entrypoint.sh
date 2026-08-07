@@ -563,23 +563,23 @@ if [[ -f "${NGINX_LANDING_INDEX_HTML}" ]]; then
   fi
   if [[ "$NGINX_AUTH_MODE" == "ldap" ]]; then
     AUTH_TITLE="LDAP Authentication"
-    AUTH_DESC="Malcolm is using <a href=\"readme/docs/authsetup.html#AuthLDAP\">LDAP</a> for authentication"
+    AUTH_DESC="Oculox is using <a href=\"readme/docs/authsetup.html#AuthLDAP\">LDAP</a> for authentication"
     AUTH_LINK="/readme/docs/authsetup.html#AuthLDAP"
   elif [[ "$NGINX_AUTH_MODE" == "keycloak" ]]; then
     AUTH_TITLE="Keycloak Authentication"
-    AUTH_DESC="Malcolm is using <a href=\"readme/docs/authsetup.html#AuthKeycloak\">Keycloak</a> for authentication"
+    AUTH_DESC="Oculox is using <a href=\"readme/docs/authsetup.html#AuthKeycloak\">Keycloak</a> for authentication"
     AUTH_LINK="/keycloak/"
   elif [[ "$NGINX_AUTH_MODE" == "keycloak_remote" ]]; then
     AUTH_TITLE="Keycloak Authentication"
-    AUTH_DESC="Malcolm is using a remote <a href=\"readme/docs/authsetup.html#AuthKeycloakRemote\">Keycloak</a> for authentication"
+    AUTH_DESC="Oculox is using a remote <a href=\"readme/docs/authsetup.html#AuthKeycloakRemote\">Keycloak</a> for authentication"
     AUTH_LINK="${KEYCLOAK_AUTH_URL:-}"
   elif [[ "$NGINX_AUTH_MODE" == "no_authentication" ]] || [[ "$NGINX_AUTH_MODE" == "none" ]] || [[ "$NGINX_AUTH_MODE" == "no" ]]; then
     AUTH_TITLE="Authentication is Disabled"
-    AUTH_DESC="<a href=\"/readme/docs/authsetup.html\">Authentication for Malcolm</a> is disabled"
+    AUTH_DESC="<a href=\"/readme/docs/authsetup.html\">Authentication for Oculox</a> is disabled"
     AUTH_LINK="/readme/docs/authsetup.html"
   else
     AUTH_TITLE="Local Account Management"
-    AUTH_DESC="Manage the <a href=\"/readme/docs/authsetup.html#AuthBasicAccountManagement\">local user accounts</a> maintained by Malcolm"
+    AUTH_DESC="Manage the <a href=\"/readme/docs/authsetup.html#AuthBasicAccountManagement\">local user accounts</a> maintained by Oculox"
     AUTH_LINK="/auth/"
   fi
   if [[ "${NETBOX_MODE:-local}" == "disabled" ]]; then

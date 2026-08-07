@@ -23,11 +23,11 @@ from scripts.installer.configs.constants.configuration_item_keys import (
 
 CONFIG_ITEM_OPEN_PORTS = ConfigItem(
     key=KEY_CONFIG_ITEM_OPEN_PORTS,
-    label="Expose Malcolm Service Ports",
+    label="Expose Oculox Service Ports",
     default_value=OpenPortsChoices.NO.value,
     choices=[x.value for x in OpenPortsChoices],
     validator=lambda x: isinstance(x, str) and (x in [v.value for v in OpenPortsChoices]),
-    question="Should Malcolm accept logs and metrics from a Hedgehog sensor or other forwarder?",
+    question="Should Oculox accept logs and metrics from a Hedgehog sensor or other forwarder?",
     widget_type=WidgetType.SELECT,
 )
 

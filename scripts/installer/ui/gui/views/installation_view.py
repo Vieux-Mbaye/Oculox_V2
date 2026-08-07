@@ -48,7 +48,7 @@ class InstallationView(BaseView):
         # Title
         title = customtkinter.CTkLabel(
             self.frame,
-            text="Malcolm Installation",
+            text="Oculox Installation",
             font=customtkinter.CTkFont(size=20, weight="bold"),
         )
         title.grid(row=0, column=0, columnspan=3, padx=20, pady=(20, 10), sticky="w")
@@ -56,7 +56,7 @@ class InstallationView(BaseView):
         # Description
         description = customtkinter.CTkLabel(
             self.frame,
-            text="Install Malcolm with your configured settings",
+            text="Install Oculox with your configured settings",
             font=customtkinter.CTkFont(size=12),
         )
         description.grid(row=1, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="w")

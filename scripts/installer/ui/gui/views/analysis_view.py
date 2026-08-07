@@ -44,7 +44,7 @@ class AnalysisView(BaseView):
         # Description
         description = customtkinter.CTkLabel(
             self.frame,
-            text="Configure analysis settings for Malcolm",
+            text="Configure analysis settings for Oculox",
             font=customtkinter.CTkFont(size=12),
         )
         description.grid(row=1, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="w")
@@ -80,7 +80,7 @@ class AnalysisView(BaseView):
         # Description
         description = customtkinter.CTkLabel(
             self.frame,
-            text="Configure which tools Malcolm will use for PCAP analysis",
+            text="Configure which tools Oculox will use for PCAP analysis",
             font=customtkinter.CTkFont(size=12),
         )
         description.grid(row=row, column=0, columnspan=3, padx=20, pady=(0, 10), sticky="w")
@@ -172,7 +172,7 @@ class AnalysisView(BaseView):
         self.is_ot_ics_network_var = customtkinter.BooleanVar(value=False)
         self.is_ot_ics_network_checkbox = customtkinter.CTkCheckBox(
             self.frame,
-            text="Malcolm is monitoring an Operational Technology/Industrial Control Systems (OT/ICS) network",
+            text="Oculox is monitoring an Operational Technology/Industrial Control Systems (OT/ICS) network",
             variable=self.is_ot_ics_network_var,
             command=self._on_is_ot_ics_network_change,
             onvalue=True,
@@ -187,7 +187,7 @@ class AnalysisView(BaseView):
 
         logs_label = customtkinter.CTkLabel(
             logs_frame,
-            text="Should Malcolm accept logs and metrics from a Hedgehog Linux sensor or other forwarder?",
+            text="Should Oculox accept logs and metrics from a Hedgehog Linux sensor or other forwarder?",
             font=customtkinter.CTkFont(size=12),
         )
         logs_label.grid(row=0, column=0, columnspan=3, padx=0, pady=(5, 5), sticky="w")

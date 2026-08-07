@@ -129,7 +129,7 @@ class DialogConfigurationMenu:
                 return True if parent_key is None else True
 
             try:
-                label = "Malcolm Configuration" if parent_key is None else self.mc.get_item(parent_key).label
+                label = "Oculox Configuration" if parent_key is None else self.mc.get_item(parent_key).label
                 prompt = re.sub(r'^(?:Enable |Use )| Mode$', '', label) + ": select an item to configure"
                 result = InstallerChooseOne(
                     prompt,

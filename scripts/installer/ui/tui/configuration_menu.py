@@ -49,7 +49,7 @@ class ConfigurationMenu(BaseMenu):
 
     def build_menu(self) -> None:
         """Build the hierarchical configuration menu."""
-        self.menu_builder.add_header("Malcolm Configuration Menu")
+        self.menu_builder.add_header("Oculox Configuration Menu")
         self.menu_builder.add_description("Select an item number to configure, or an action:")
 
         # Render via store view model for consistent ordering and connectors

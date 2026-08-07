@@ -472,7 +472,7 @@ def main():
     dirs = InstallerDirs(input_dir=get_default_config_dir(), output_dir=get_default_config_dir())
 
     try:
-        parser = argparse.ArgumentParser(description="Malcolm Installer", conflict_handler="resolve")
+        parser = argparse.ArgumentParser(description="Oculox Installer", conflict_handler="resolve")
         build_arg_parser(parser)
     except Exception as e:
         InstallerLogger.error(f"Failed to build installer specific argument parser: {e}")  # fmt: skip
@@ -594,9 +594,9 @@ def main():
 
     try:
         # note: this will fail if the .env.example files are not present in config/ as we use them to map the .env files
-        InstallerLogger.start("Initializing Internal Malcolm Configs") # fmt: skip
+        InstallerLogger.start("Initializing Internal Oculox Configs") # fmt: skip
         malcolm_config = MalcolmConfig()
-        InstallerLogger.end("Initializing Internal Malcolm Configs", InstallerResult.SUCCESS) # fmt: skip
+        InstallerLogger.end("Initializing Internal Oculox Configs", InstallerResult.SUCCESS) # fmt: skip
     except Exception as e:
         import traceback
 

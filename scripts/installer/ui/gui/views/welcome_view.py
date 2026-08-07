@@ -55,7 +55,7 @@ class WelcomeView(BaseView):
             Malcolm_dir = GetMalcolmDir()
 
             # Use relative path from the project base
-            logo_path = os.path.join(Malcolm_dir, "docs", "images", "logo", "Malcolm_banner.png")
+            logo_path = os.path.join(Malcolm_dir, "dev", "branding", "logo_Oculox.png")
 
             if os.path.exists(logo_path):
                 logo_image = customtkinter.CTkImage(
@@ -77,7 +77,7 @@ class WelcomeView(BaseView):
         # Title
         title = customtkinter.CTkLabel(
             self.content_frame,
-            text="Welcome to Malcolm",
+            text="Welcome to Oculox",
             font=customtkinter.CTkFont(size=24, weight="bold"),
         )
         title.pack(pady=(10, 20))
@@ -85,7 +85,7 @@ class WelcomeView(BaseView):
         # Description
         description = customtkinter.CTkLabel(
             self.content_frame,
-            text="Malcolm is a powerful, easily deployable network traffic analysis tool suite for\nfull packet capture artifacts (PCAP files) and Zeek logs.",
+            text="Oculox is a deployable OT network security monitoring platform for\nnetwork traffic, packet captures, protocol logs and security events.",
             font=customtkinter.CTkFont(size=14),
             wraplength=600,
         )
@@ -94,7 +94,7 @@ class WelcomeView(BaseView):
         # Installer description
         installer_desc = customtkinter.CTkLabel(
             self.content_frame,
-            text="This installer will guide you through the process of setting up Malcolm on your system.",
+            text="This installer will guide you through the process of setting up Oculox on your system.",
             font=customtkinter.CTkFont(size=14),
             wraplength=600,
         )

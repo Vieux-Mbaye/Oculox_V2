@@ -45,7 +45,7 @@ class InstallationMenu(BaseMenu):
 
     def build_menu(self) -> None:
         """Build the installation options menu."""
-        self.menu_builder.add_header("Malcolm Installation Options")
+        self.menu_builder.add_header("Oculox Installation Options")
         self.menu_builder.add_description("Select an item number to configure, or an action:")
 
         # Build menu items with grouping via the view model

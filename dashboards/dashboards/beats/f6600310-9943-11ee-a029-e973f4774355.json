@@ -2,7 +2,7 @@
   "objects": [
     {
       "attributes": {
-        "description": "Messages from Systemd's Journald daemon on Linux environments, including Malcolm sensors and aggregators",
+        "description": "Messages from Systemd's Journald daemon on Linux environments, including Oculox sensors and aggregators",
         "hits": 0,
         "kibanaSavedObjectMeta": {
           "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filter\":[]}"

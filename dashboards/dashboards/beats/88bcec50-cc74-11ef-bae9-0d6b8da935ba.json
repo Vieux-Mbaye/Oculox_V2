@@ -2,7 +2,7 @@
   "objects": [
     {
       "attributes": {
-        "description": "Syslog messages forwarded to Malcolm from third-party hosts",
+        "description": "Syslog messages forwarded to Oculox from third-party hosts",
         "hits": 0,
         "kibanaSavedObjectMeta": {
           "searchSourceJSON": "{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filter\":[]}"

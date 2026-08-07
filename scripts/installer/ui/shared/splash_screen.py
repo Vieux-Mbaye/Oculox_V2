@@ -89,6 +89,39 @@ UNICODE_GLYPHS = {
         " ███████████    ",
         "░░░░░░░░░░░     ",
     ],
+    "O": [
+        "  ███████████   ",
+        " ███░░░░░░░███  ",
+        "███       ░░███ ",
+        "███        ░███ ",
+        "███        ░███ ",
+        "███        ░███ ",
+        "░███       ███  ",
+        " ░░██████████   ",
+        "   ░░░░░░░░     ",
+    ],
+    "U": [
+        " ████     ████  ",
+        "░░███     ░███  ",
+        " ░███     ░███  ",
+        " ░███     ░███  ",
+        " ░███     ░███  ",
+        " ░███     ░███  ",
+        " ░░███    ███   ",
+        "  ░░████████    ",
+        "    ░░░░░░      ",
+    ],
+    "X": [
+        " ████     ████  ",
+        "░░███     ░███  ",
+        " ░░███   ███    ",
+        "  ░░███ ███     ",
+        "   ░░█████      ",
+        "    ███░███     ",
+        "  ████ ░░████   ",
+        " █████   █████  ",
+        "░░░░░   ░░░░░   ",
+    ],
     "G": [
         " ██████████████ ",
         "░░███░░░░░░░░░██",
@@ -103,11 +136,11 @@ UNICODE_GLYPHS = {
 }
 
 LEFT_WORD = {
-    PROFILE_MALCOLM: ["M", "A", "L", "C"],
+    PROFILE_MALCOLM: ["O", "C", "U", "L"],
     PROFILE_HEDGEHOG: ["H", "E", "D", "G", "E", "H"],
 }
 RIGHT_WORD = {
-    PROFILE_MALCOLM: ["L", "M"],
+    PROFILE_MALCOLM: ["X"],
     PROFILE_HEDGEHOG: ["G"],
 }
 WHEEL_FRAME_COUNT = 16
@@ -117,7 +150,7 @@ FOOTER_TEXT = "Press any key to continue..."
 
 
 def splash_screen(profile: str = PROFILE_MALCOLM):
-    """Render an animated Malcolm splash with a spinning ASCII 'O'."""
+    """Render an animated Oculox splash with a spinning ASCII 'O'."""
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         return
 

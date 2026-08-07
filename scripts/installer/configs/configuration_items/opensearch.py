@@ -39,17 +39,17 @@ CONFIG_ITEM_OPENSEARCH_PRIMARY_MODE = ConfigItem(
     default_value=DATABASE_MODE_LABELS[DatabaseMode.OpenSearchLocal],
     choices=list(DATABASE_MODE_ENUMS.keys()),
     validator=lambda x: x in DATABASE_MODE_ENUMS.keys(),
-    question="Select primary Malcolm document store",
+    question="Select primary Oculox document store",
     widget_type=WidgetType.SELECT,
 )
 
 CONFIG_ITEM_REMOTE_MALCOLM_HOST = ConfigItem(
     key=KEY_CONFIG_ITEM_REMOTE_MALCOLM_HOST,
-    label="Remote Malcolm Hostname or IP",
+    label="Remote Oculox Hostname or IP",
     default_value="",
     accept_blank=True,
     validator=lambda x: isinstance(x, str),
-    question='Hostname or IP address of remote "parent" Malcolm instance (without protocol or port number)',
+    question='Hostname or IP address of remote "parent" Oculox instance (without protocol or port number)',
     widget_type=WidgetType.TEXT,
 )
 

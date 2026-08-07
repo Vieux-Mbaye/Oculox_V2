@@ -38,7 +38,7 @@ CONFIG_ITEM_PROCESS_GROUP_ID = ConfigItem(
     label="Process Group ID",
     default_value=SYSTEM_INFO["recommended_nonroot_gid"],
     validator=lambda x: isinstance(x, int) and x >= 0,
-    question="Group ID (GID) for running non-root Malcolm processes",
+    question="Group ID (GID) for running non-root Oculox processes",
     widget_type=WidgetType.NUMBER,
 )
 
@@ -47,7 +47,7 @@ CONFIG_ITEM_PROCESS_USER_ID = ConfigItem(
     label="Process User ID",
     default_value=SYSTEM_INFO["recommended_nonroot_uid"],
     validator=lambda x: isinstance(x, int) and x >= 0,
-    question="User ID (UID) for running non-root Malcolm processes",
+    question="User ID (UID) for running non-root Oculox processes",
     widget_type=WidgetType.NUMBER,
 )
 
@@ -65,11 +65,11 @@ CONFIG_ITEM_DOCKER_ORCHESTRATION_MODE = ConfigItem(
 
 CONFIG_ITEM_MALCOLM_RESTART_POLICY = ConfigItem(
     key=KEY_CONFIG_ITEM_MALCOLM_RESTART_POLICY,
-    label="Malcolm Restart Policy",
+    label="Oculox Restart Policy",
     default_value=DockerRestartPolicy.NO.value,
     choices=[x.value for x in DockerRestartPolicy],
     validator=lambda x: isinstance(x, str) and x in [v.value for v in DockerRestartPolicy],
-    question="Select policy for restarting Malcolm after system or container daemon restarts",
+    question="Select policy for restarting Oculox after system or container daemon restarts",
     widget_type=WidgetType.SELECT,
 )
 
@@ -87,7 +87,7 @@ CONFIG_ITEM_TRAEFIK_HOST = ConfigItem(
     label="Traefik Host",
     default_value="",
     validator=lambda x: isinstance(x, str),
-    question="Request domain (host header value) for Malcolm interface Traefik router (e.g., malcolm.example.org)",
+    question="Request domain (host header value) for Oculox interface Traefik router (e.g., oculox.example.org)",
     widget_type=WidgetType.TEXT,
 )
 

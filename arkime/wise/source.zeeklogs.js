@@ -3504,7 +3504,7 @@ class MalcolmSource extends WISESource {
       "if (session.event.hash)\n" +
 
       // id and basic connection information
-      "  div.sessionDetailMeta.bold Malcolm Common Fields\n" +
+      "  div.sessionDetailMeta.bold Oculox Common Fields\n" +
       "  dl.sessionDetailMeta(suffix=\"IDs and Basic Connection Info\")\n" +
       "    +arrayList(session.event, 'id', 'Log ID', 'event.id')\n" +
       "    +arrayList(session.event, 'hash', 'Log Hash', 'event.hash')\n" +
@@ -3512,7 +3512,7 @@ class MalcolmSource extends WISESource {
       "    +arrayList(session.event, 'provider', 'Data Source', 'event.provider')\n" +
       "    +arrayList(session.event, 'dataset', 'Log Type', 'event.dataset')\n" +
       "    +arrayList(session.event, 'module', 'Data  Source Module', 'event.module')\n" +
-      "    +arrayList(session.host, 'name', 'Malcolm Node', 'host.name')\n" +
+      "    +arrayList(session.host, 'name', 'Oculox Node', 'host.name')\n" +
       "    +arrayList(session.network, 'transport', 'Protocol', 'network.transport')\n" +
       "    +arrayList(session.network, 'protocol', 'Service', 'network.protocol')\n" +
       "    +arrayList(session.network, 'protocol_version', 'Service Version', 'network.protocol_version')\n" +
@@ -3573,7 +3573,7 @@ exports.initSource = function (api) {
   api.addSourceConfigDef('malcolm', {
     singleton: true,
     name: 'malcolm',
-    description: 'Defines Malcolm data source fields in Arkime',
+    description: 'Defines Oculox data source fields in Arkime',
     link: 'https://idaholab.github.io/Malcolm',
     types: [],
     cacheable: false,

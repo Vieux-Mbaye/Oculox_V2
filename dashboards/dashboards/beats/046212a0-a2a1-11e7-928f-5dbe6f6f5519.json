@@ -2,7 +2,7 @@
   "objects": [
     {
       "attributes": {
-        "description": "nginx logs, including from Malcolm's own nginx instance",
+        "description": "nginx logs, including from Oculox's own nginx instance",
         "hits": 0,
         "kibanaSavedObjectMeta": {
           "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"version\":true,\"highlightAll\":false,\"filter\":[]}"

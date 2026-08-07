@@ -16,6 +16,10 @@ services:
 
   dashboards:
     restart: unless-stopped
+    volumes:
+      # The official entrypoint copies this template to its writable runtime
+      # configuration, then injects the OpenSearch credentials as usual.
+      - ./dashboards/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.orig.yml:ro
 
   dashboards-helper:
     restart: unless-stopped
@@ -36,7 +40,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./filescan/scripts/extracted_files_http_server.py:/usr/local/bin/extracted_files_http_server.py:ro
-      - ./dev/branding/oculox-icon.png:/opt/assets/favicon.ico:ro
+      - ./dev/branding/icone_logo.png:/opt/assets/favicon.ico:ro
 
   freq:
     restart: unless-stopped
@@ -45,8 +49,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./htadmin/src/includes/head.php:/var/www/htadmin/includes/head.php:ro
-      - ./docs/images/logo/logo_Oculox.png:/var/www/htadmin/Oculox_logo.png:ro
-      - ./dev/branding/oculox-icon.png:/var/www/htadmin/oculox-icon.png:ro
+      - ./dev/branding/logo_Oculox.png:/var/www/htadmin/logo_Oculox.png:ro
+      - ./dev/branding/icone_logo.png:/var/www/htadmin/icone_logo.png:ro
+      - ./dev/branding/icone_logo.png:/var/www/htadmin/oculox-icon.png:ro
 
   keycloak:
     restart: unless-stopped
@@ -78,10 +83,16 @@ services:
       - --
       - /usr/local/bin/docker-uid-gid-setup.sh
       - /opt/oculox-branding/install-nginx-branding.sh
+    command:
+      - /usr/bin/supervisord
+      - -c
+      - /etc/supervisord.conf
+      - -u
+      - root
+      - -n
     volumes:
       - ./dev/branding:/opt/oculox-branding:ro
-      - ./nginx/landingpage:/opt/oculox-branding/landingpage:ro
-      - ./docs/images/logo/logo_Oculox.png:/opt/oculox-branding/Oculox_logo.png:ro
+      - ./nginx/landingpage:/opt/oculox-landingpage:ro
       - ./nginx/nginx_htadmin_global_replacements.conf:/etc/nginx/nginx_htadmin_global_replacements.conf:ro
       - ./nginx/nginx_netbox_location.conf:/etc/nginx/nginx_netbox_location.conf:ro
       - ./nginx/nginx_image_aliases.conf:/etc/nginx/nginx_image_aliases.conf:ro
@@ -117,8 +128,9 @@ services:
     restart: unless-stopped
     volumes:
       - ./file-upload/site/index.html:/var/www/upload/index.html:ro
-      - ./docs/images/logo/logo_Oculox.png:/var/www/upload/Oculox_logo.png:ro
-      - ./dev/branding/oculox-icon.png:/var/www/upload/oculox-icon.png:ro
+      - ./dev/branding/logo_Oculox.png:/var/www/upload/logo_Oculox.png:ro
+      - ./dev/branding/icone_logo.png:/var/www/upload/icone_logo.png:ro
+      - ./dev/branding/icone_logo.png:/var/www/upload/oculox-icon.png:ro
 
   valkey:
     restart: unless-stopped

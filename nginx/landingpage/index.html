@@ -1,402 +1,687 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="light">
-    <!-- Copyright (c) 2026 Battelle Energy Alliance, LLC.  All rights reserved. -->
+<html lang="fr" data-theme="dark">
+    <!-- Copyright (c) 2026 Battelle Energy Alliance, LLC. All rights reserved. -->
     <head>
         <base target="_blank">
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <meta name="author" content="" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="description" content="Portail Oculox de supervision et d'investigation de la sécurité OT" />
         <title>Oculox | Sécurité OT</title>
-        <link rel="icon" type="image/png" href="assets/oculox-icon.png" />
-        <link href="css/bootstrap-icons.css" rel="stylesheet" type="text/css" />
-
+        <link rel="icon" type="image/png" href="assets/img/icone_logo.png" />
         <style>
-            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-            /* ===== THEMES ===== */
-            :root, [data-theme="light"] {
-                --bg:           #ffffff;
-                --bg-section:   #f4f6f9;
-                --bg-card:      #ffffff;
-                --text:         #1e2a38;
-                --text-muted:   #6c757d;
-                --border:       #dee2e6;
-                --primary:      #2d6bcf;
-                --shadow-sm:    0 2px 8px rgba(0,0,0,0.07);
-                --shadow-md:    0 6px 24px rgba(0,0,0,0.13);
-                --toggle-bg:    #e2e8f0;
-                --toggle-knob:  #ffffff;
-                --toggle-icon:  "☀️";
+            *, *::before, *::after {
+                box-sizing: border-box;
             }
 
-            [data-theme="dark"] {
-                --bg:           #0f1523;
-                --bg-section:   #151d2e;
-                --bg-card:      #1c2540;
-                --text:         #e2e8f0;
-                --text-muted:   #94a3b8;
-                --border:       #2d3a55;
-                --primary:      #60a5fa;
-                --shadow-sm:    0 2px 8px rgba(0,0,0,0.3);
-                --shadow-md:    0 6px 24px rgba(0,0,0,0.5);
-                --toggle-bg:    #2d3a55;
-                --toggle-knob:  #60a5fa;
+            :root {
+                color-scheme: dark;
+                --page: #04080d;
+                --page-alt: #071018;
+                --surface: #0a141c;
+                --surface-strong: #0d1b24;
+                --text: #e9f5f9;
+                --muted: #87a0ad;
+                --accent: #22d3ee;
+                --accent-strong: #00a8c7;
+                --line: rgba(120, 190, 215, 0.20);
+                --line-strong: rgba(34, 211, 238, 0.58);
+                --grid: rgba(120, 190, 215, 0.055);
+                --shadow: rgba(0, 0, 0, 0.45);
             }
 
-            /* ===== BASE ===== */
+            [data-theme="light"] {
+                color-scheme: light;
+                --page: #eef3f6;
+                --page-alt: #e4edf1;
+                --surface: #ffffff;
+                --surface-strong: #f8fbfc;
+                --text: #07161d;
+                --muted: #58717d;
+                --accent: #0e7f9b;
+                --accent-strong: #08647b;
+                --line: rgba(11, 58, 77, 0.16);
+                --line-strong: rgba(14, 127, 155, 0.56);
+                --grid: rgba(11, 58, 77, 0.05);
+                --shadow: rgba(11, 58, 77, 0.14);
+            }
+
+            html {
+                min-width: 320px;
+                background: var(--page);
+            }
+
             body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: var(--bg);
+                margin: 0;
+                min-height: 100vh;
+                overflow-x: hidden;
+                background: var(--page);
                 color: var(--text);
-                line-height: 1.6;
-                transition: background-color 0.3s ease, color 0.3s ease;
+                font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                transition: background-color 180ms ease, color 180ms ease;
             }
 
-            a { text-decoration: none; color: inherit; }
-
-            /* ===== NAVBAR ===== */
-            .navbar {
-                background-color: #07131f;
-                border-bottom: 1px solid #17344a;
-                padding: 0.75rem 1.5rem;
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                box-shadow: var(--shadow-sm);
-                transition: background-color 0.3s ease, border-color 0.3s ease;
+            @keyframes floaty {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-8px); }
             }
 
-            .navbar-inner {
-                max-width: 1200px;
-                margin: 0 auto;
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+
+            @keyframes ringpulse {
+                0%, 100% { opacity: 0.35; transform: scale(1); }
+                50% { opacity: 0.9; transform: scale(1.04); }
+            }
+
+            @keyframes serviceFloat {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-5px); }
+            }
+
+            @keyframes spokePulse {
+                0%, 100% { opacity: 0.28; }
+                50% { opacity: 0.68; }
+            }
+
+            button, a {
+                font: inherit;
+            }
+
+            a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .top-band {
+                position: relative;
+                min-height: 590px;
+                overflow: hidden;
+                background-color: var(--page);
+                border-bottom: 1px solid var(--line);
+            }
+
+            .top-band::before {
+                position: absolute;
+                inset: 0;
+                background-image:
+                    linear-gradient(var(--grid) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+                background-size: 64px 64px;
+                content: "";
+                pointer-events: none;
+            }
+
+            .site-header {
+                position: relative;
+                z-index: 2;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                min-height: 74px;
+                padding: 14px 44px;
+                border-bottom: 1px solid var(--line);
             }
 
-            .navbar-brand img {
+            .brand-logo {
+                display: block;
+                width: auto;
                 height: 42px;
                 object-fit: contain;
             }
 
-            /* ===== DARK MODE TOGGLE ===== */
             .theme-toggle {
-                display: flex;
+                display: inline-flex;
                 align-items: center;
-                gap: 0.5rem;
+                min-width: 102px;
+                height: 38px;
+                gap: 10px;
+                padding: 0 13px;
+                border: 1px solid var(--line);
+                border-radius: 19px;
+                background: var(--surface);
+                color: var(--muted);
                 cursor: pointer;
-                user-select: none;
             }
 
-            .theme-toggle-label {
-                font-size: 0.8rem;
-                color: var(--text-muted);
-                font-weight: 500;
+            .theme-toggle:hover,
+            .theme-toggle:focus-visible {
+                border-color: var(--line-strong);
+                outline: none;
             }
 
-            .toggle-switch {
+            .theme-track {
                 position: relative;
-                width: 48px;
-                height: 26px;
+                width: 34px;
+                height: 18px;
+                flex: 0 0 auto;
+                border: 1px solid var(--line);
+                border-radius: 9px;
+                background: rgba(34, 211, 238, 0.10);
             }
 
-            .toggle-switch input {
-                opacity: 0;
-                width: 0;
-                height: 0;
+            .theme-knob {
                 position: absolute;
-            }
-
-            .toggle-slider {
-                position: absolute;
-                inset: 0;
-                background-color: var(--toggle-bg);
-                border-radius: 26px;
-                transition: 0.3s;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                padding: 3px;
-            }
-
-            .toggle-slider::before {
-                content: '';
-                width: 20px;
-                height: 20px;
-                background-color: var(--toggle-knob);
+                top: 2px;
+                left: 17px;
+                width: 12px;
+                height: 12px;
                 border-radius: 50%;
-                transition: 0.3s;
-                flex-shrink: 0;
+                background: var(--accent);
+                box-shadow: 0 0 8px rgba(34, 211, 238, 0.50);
+                transition: left 180ms ease;
             }
 
-            input:checked + .toggle-slider::before {
-                transform: translateX(22px);
+            [data-theme="light"] .theme-knob {
+                left: 2px;
             }
 
-            .toggle-icon {
-                font-size: 1rem;
-                line-height: 1;
-            }
-
-            /* ===== MASTHEAD ===== */
-            .masthead {
-                background-color: #07131f !important;
-                background-image: none !important;
-                padding: 2.75rem 1.5rem;
-                text-align: center;
-                border-bottom: 1px solid #17344a;
-                transition: background-color 0.3s ease, border-color 0.3s ease;
-            }
-
-            .masthead img {
-                max-width: 430px;
-                width: 100%;
-                height: auto;
-                object-fit: contain;
-                display: block;
-                margin: 0 auto;
-            }
-
-            /* ===== SECTION ===== */
-            .section-title {
-                text-align: center;
-                padding: 2.5rem 1rem 0.5rem;
-                font-size: 0.72rem;
+            .theme-label {
+                min-width: 34px;
+                font-size: 12px;
                 font-weight: 700;
-                letter-spacing: 0.18em;
+                letter-spacing: 0;
                 text-transform: uppercase;
-                color: var(--text-muted);
             }
 
-            .features-section {
-                background-color: var(--bg-section);
-                padding: 1.5rem 1.5rem 3rem;
-                transition: background-color 0.3s ease;
-            }
-
-            .features-grid {
-                max-width: 1100px;
-                margin: 0 auto;
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-                gap: 1.5rem;
-                padding-top: 1.5rem;
-            }
-
-            /* ===== CARDS ===== */
-            .feature-card {
-                background-color: var(--bg-card);
-                border-radius: 8px;
-                padding: 2rem 1.5rem;
-                text-align: center;
-                box-shadow: var(--shadow-sm);
-                border: 1px solid var(--border);
-                transition: transform 0.25s ease, box-shadow 0.25s ease,
-                            background-color 0.3s ease, border-color 0.3s ease;
+            .hero {
+                position: relative;
+                z-index: 1;
                 display: flex;
                 flex-direction: column;
-                align-items: center;
-                gap: 0.75rem;
-            }
-
-            .feature-card:hover {
-                transform: translateY(-5px);
-                box-shadow: var(--shadow-md);
-            }
-
-            .feature-card a {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 0.75rem;
-                width: 100%;
-            }
-
-            .feature-icon {
-                width: 60px;
-                height: 60px;
-                object-fit: contain;
-                display: block;
-            }
-
-            /* Bootstrap icon via CSS background-image fallback */
-            .feature-icon-bi {
-                width: 60px;
-                height: 60px;
-                display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 2.8rem;
-                color: var(--primary);
-                line-height: 1;
-                transition: color 0.3s ease;
-            }
-
-            .feature-card h3 {
-                font-size: 1rem;
-                font-weight: 700;
-                color: var(--primary);
-                margin: 0;
-                transition: color 0.3s ease;
-            }
-
-            .feature-card p {
-                font-size: 0.875rem;
-                color: var(--text-muted);
-                margin: 0;
-                line-height: 1.55;
-                transition: color 0.3s ease;
-            }
-
-            /* ===== SVG ICONS INLINE (fallback for bi icons) ===== */
-            .icon-upload {
-                display: block;
-                width: 56px;
-                height: 56px;
-                color: var(--primary);
-            }
-            .icon-person {
-                display: block;
-                width: 56px;
-                height: 56px;
-                color: var(--primary);
-            }
-
-            /* ===== FOOTER ===== */
-            .footer {
-                background-color: var(--bg);
-                border-top: 1px solid var(--border);
-                padding: 1.5rem;
+                min-height: 510px;
+                padding: 62px 24px 76px;
                 text-align: center;
-                transition: background-color 0.3s ease, border-color 0.3s ease;
             }
 
-            .footer p {
-                font-size: 0.8rem;
-                color: var(--text-muted);
+            .status-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                min-height: 32px;
+                padding: 5px 15px;
+                border: 1px solid var(--line);
+                border-radius: 16px;
+                background: var(--surface);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0;
+                text-transform: uppercase;
+            }
+
+            .status-dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: var(--accent);
+                box-shadow: 0 0 8px var(--accent);
+            }
+
+            .hero-logo {
+                display: block;
+                width: 400px;
+                max-width: 72vw;
+                height: auto;
+                margin: 30px auto 8px;
+                object-fit: contain;
+                filter: drop-shadow(0 16px 26px var(--shadow));
+                animation: floaty 7s ease-in-out infinite;
+            }
+
+            .hero h1 {
+                max-width: 760px;
+                margin: 10px auto 0;
+                color: var(--text);
+                font-size: 52px;
+                line-height: 1.08;
+                font-weight: 750;
+                letter-spacing: 0;
+            }
+
+            .hero-rule {
+                width: 64px;
+                height: 2px;
+                margin: 26px auto 0;
+                background: var(--accent);
+            }
+
+            .hero p {
+                max-width: 610px;
+                margin: 20px auto 0;
+                color: var(--muted);
+                font-size: 17px;
+                line-height: 1.6;
+            }
+
+            .services {
+                padding: 62px 24px 52px;
+                background: var(--page-alt);
+            }
+
+            .section-label {
                 margin: 0;
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0;
+                text-align: center;
+                text-transform: uppercase;
             }
 
-            /* ===== RESPONSIVE ===== */
-            @media (max-width: 576px) {
-                .masthead img { max-width: 220px; }
-                .features-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
-                .feature-card { padding: 1.25rem 1rem; }
+            .orbit {
+                position: relative;
+                width: 820px;
+                height: 820px;
+                margin: 0 auto;
+            }
+
+            .orbit-ring,
+            .orbit-ring-inner {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                border-radius: 50%;
+                pointer-events: none;
+            }
+
+            .orbit-ring {
+                width: 580px;
+                height: 580px;
+                margin: -290px 0 0 -290px;
+                border: 1px dashed var(--line);
+            }
+
+            .orbit-ring-inner {
+                width: 290px;
+                height: 290px;
+                margin: -145px 0 0 -145px;
+                border: 1px solid rgba(34, 211, 238, 0.12);
+                animation: ringpulse 5s ease-in-out infinite;
+            }
+
+            .spokes {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                z-index: 1;
+                width: 0;
+                height: 0;
+                pointer-events: none;
+            }
+
+            .spoke {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 212px;
+                height: 1px;
+                transform: rotate(var(--angle));
+                transform-origin: 0 50%;
+                background: linear-gradient(90deg, var(--line-strong), rgba(34, 211, 238, 0.08));
+                animation: spokePulse 4.8s ease-in-out infinite;
+                animation-delay: var(--delay);
+            }
+
+            .core {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                z-index: 2;
+                display: flex;
+                width: 150px;
+                height: 150px;
+                margin: -75px 0 0 -75px;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid var(--line-strong);
+                border-radius: 50%;
+                background: var(--surface-strong);
+                box-shadow: 0 16px 44px var(--shadow);
+            }
+
+            .core::before {
+                position: absolute;
+                inset: -10px;
+                border: 1px solid var(--line);
+                border-top-color: transparent;
+                border-left-color: transparent;
+                border-radius: 50%;
+                content: "";
+                animation: spin 12s linear infinite;
+            }
+
+            .core strong {
+                color: var(--text);
+                font-size: 18px;
+                letter-spacing: 0;
+            }
+
+            .core span {
+                margin-top: 3px;
+                color: var(--accent);
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0;
+            }
+
+            .service-node {
+                --node-x: 0px;
+                --node-y: 0px;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                z-index: 3;
+                display: flex;
+                width: 156px;
+                min-height: 192px;
+                margin: -78px 0 0 -78px;
+                transform: translate(var(--node-x), var(--node-y));
+                flex-direction: column;
+                align-items: center;
+                gap: 11px;
+            }
+
+            .service-node:hover,
+            .service-node:focus-visible {
+                outline: none;
+            }
+
+            .service-node:hover .hexagon,
+            .service-node:focus-visible .hexagon {
+                box-shadow: 0 12px 32px var(--shadow), 0 0 0 2px rgba(34, 211, 238, 0.12);
+                transform: translateY(-4px);
+                animation-play-state: paused;
+            }
+
+            .service-node:nth-of-type(1) { --node-x: 0px; --node-y: -290px; }
+            .service-node:nth-of-type(2) { --node-x: 251px; --node-y: -145px; }
+            .service-node:nth-of-type(3) { --node-x: 251px; --node-y: 145px; }
+            .service-node:nth-of-type(4) { --node-x: 0px; --node-y: 290px; }
+            .service-node:nth-of-type(5) { --node-x: -251px; --node-y: 145px; }
+            .service-node:nth-of-type(6) { --node-x: -251px; --node-y: -145px; }
+
+            .hexagon {
+                display: flex;
+                width: 156px;
+                height: 156px;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(150deg, var(--accent), rgba(34, 211, 238, 0.14));
+                clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+                transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+                animation: serviceFloat 6s ease-in-out infinite;
+            }
+
+            .service-node:nth-of-type(2n) .hexagon { animation-delay: -2s; }
+            .service-node:nth-of-type(3n) .hexagon { animation-delay: -4s; }
+
+            .hexagon-inner {
+                display: flex;
+                width: 153px;
+                height: 153px;
+                align-items: center;
+                justify-content: center;
+                background: var(--surface);
+                clip-path: inherit;
+            }
+
+            .service-icon {
+                display: block;
+                width: 78px;
+                height: 78px;
+                object-fit: contain;
+            }
+
+            .service-icon.symbol {
+                width: 64px;
+                height: 64px;
+                color: var(--accent);
+            }
+
+            .service-name {
+                color: var(--text);
+                font-size: 14px;
+                font-weight: 700;
+                letter-spacing: 0;
+                text-align: center;
+            }
+
+            .site-footer {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                min-height: 68px;
+                padding: 18px 44px;
+                border-top: 1px solid var(--line);
+                background: var(--page);
+                color: var(--muted);
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 0;
+                text-transform: uppercase;
+            }
+
+            @media (max-width: 900px) {
+                .top-band {
+                    min-height: auto;
+                }
+
+                .site-header {
+                    padding: 12px 20px;
+                }
+
+                .brand-logo {
+                    height: 36px;
+                }
+
+                .hero {
+                    min-height: 500px;
+                    padding: 58px 20px 72px;
+                }
+
+                .hero h1 {
+                    font-size: 42px;
+                }
+
+                .services {
+                    padding: 52px 20px;
+                }
+
+                .orbit {
+                    display: grid;
+                    width: 100%;
+                    max-width: 620px;
+                    height: auto;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 20px;
+                    padding-top: 32px;
+                }
+
+                .orbit-ring,
+                .orbit-ring-inner,
+                .core,
+                .spokes {
+                    display: none;
+                }
+
+                .service-node,
+                .service-node:nth-of-type(n) {
+                    position: static;
+                    width: 100%;
+                    min-height: 180px;
+                    margin: 0;
+                    transform: none;
+                }
+            }
+
+            @media (max-width: 560px) {
+                .theme-toggle {
+                    min-width: 80px;
+                }
+
+                .theme-label {
+                    display: none;
+                }
+
+                .hero {
+                    min-height: 460px;
+                }
+
+                .hero h1 {
+                    font-size: 36px;
+                }
+
+                .hero p {
+                    font-size: 15px;
+                }
+
+                .orbit {
+                    grid-template-columns: 1fr;
+                }
+
+                .site-footer {
+                    flex-direction: column;
+                    justify-content: center;
+                    gap: 5px;
+                    padding: 18px 20px;
+                    text-align: center;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after {
+                    scroll-behavior: auto !important;
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                }
             }
         </style>
     </head>
     <body>
-
-        <!-- Navigation -->
-        <nav class="navbar">
-            <div class="navbar-inner">
-                <a class="navbar-brand" href="#" target="_self">
-                    <img src="assets/img/Oculox_logo.png" alt="Oculox" />
+        <div class="top-band">
+            <header class="site-header">
+                <a href="/" target="_self" aria-label="Accueil Oculox">
+                    <img class="brand-logo" src="assets/img/icone_logo.png" alt="Oculox" />
                 </a>
-                <label class="theme-toggle" for="themeToggle" title="Changer de thème">
-                    <span class="toggle-icon" id="themeIcon">☀️</span>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="themeToggle" />
-                        <span class="toggle-slider"></span>
-                    </div>
-                    <span class="toggle-icon">🌙</span>
-                </label>
-            </div>
-        </nav>
+                <button class="theme-toggle" id="themeToggle" type="button" title="Basculer le thème" aria-label="Basculer le thème" aria-pressed="true">
+                    <span class="theme-track" aria-hidden="true"><span class="theme-knob"></span></span>
+                    <span class="theme-label" id="themeLabel">Dark</span>
+                </button>
+            </header>
 
-        <!-- Masthead -->
-        <header class="masthead">
-            <img src="assets/img/Oculox_logo.png" alt="Plateforme Oculox" />
-        </header>
+            <main>
+                <section class="hero">
+                    <div class="status-badge"><span class="status-dot"></span>Plateforme de supervision OT</div>
+                    <img class="hero-logo" src="assets/img/logo_Oculox.png" alt="Plateforme Oculox" />
+                    <h1>Une vision totale.<br />Zéro angle mort.</h1>
+                    <div class="hero-rule" aria-hidden="true"></div>
+                    <p>Supervision, analyse et protection de vos infrastructures IT et OT.</p>
+                </section>
+            </main>
+        </div>
 
-        <!-- Features -->
-        <section class="features-section">
-            <p class="section-title">Outils disponibles</p>
-            <div class="features-grid">
-
-                <div class="feature-card">
-                    <a href="MALCOLM_DASHBOARDS_URL_REPLACER">
-                        <img class="feature-icon" src="assets/img/MALCOLM_DASHBOARDS_ICON_REPLACER" alt="Dashboards" />
-                        <h3>Dashboards</h3>
-                    </a>
-                    <p>Visualisez le trafic ou identifiez les problèmes de sécurité grâce à des dizaines de tableaux de bord prédéfinis, ou créez les vôtres.</p>
+        <section class="services" aria-labelledby="servicesTitle">
+            <h2 class="section-label" id="servicesTitle">Outils</h2>
+            <div class="orbit">
+                <div class="orbit-ring" aria-hidden="true"></div>
+                <div class="orbit-ring-inner" aria-hidden="true"></div>
+                <div class="spokes" aria-hidden="true">
+                    <span class="spoke" style="--angle: -90deg; --delay: 0s"></span>
+                    <span class="spoke" style="--angle: -30deg; --delay: -0.8s"></span>
+                    <span class="spoke" style="--angle: 30deg; --delay: -1.6s"></span>
+                    <span class="spoke" style="--angle: 90deg; --delay: -2.4s"></span>
+                    <span class="spoke" style="--angle: 150deg; --delay: -3.2s"></span>
+                    <span class="spoke" style="--angle: 210deg; --delay: -4s"></span>
                 </div>
+                <div class="core" aria-hidden="true"><strong>OCULOX</strong><span>CORE</span></div>
 
-                <div class="feature-card">
-                    <a href="/arkime/">
-                        <img class="feature-icon" src="assets/img/Arkime.png" alt="Arkime"/>
-                        <h3>Examiner une session</h3>
-                    </a>
-                    <p>Examinez en détail la session, y compris la charge utile complète des paquets.</p>
-                </div>
+                <a class="service-node" href="MALCOLM_DASHBOARDS_URL_REPLACER">
+                    <span class="hexagon">
+                        <span class="hexagon-inner"><img class="service-icon" src="assets/img/MALCOLM_DASHBOARDS_ICON_REPLACER" alt="OpenSearch Dashboards" /></span>
+                    </span>
+                    <span class="service-name">Dashboards</span>
+                </a>
 
-                <div class="feature-card">
-                    <a href="MALCOLM_NETBOX_URL_REPLACER">
-                        <img class="feature-icon" src="assets/img/netbox_icon.svg" alt="NetBox" />
-                        <h3>Inventaire des actifs</h3>
-                    </a>
-                    <p>Centralisez et documentez votre infrastructure réseau et gérez vos actifs pour un suivi précis des équipements analysés.</p>
-                </div>
+                <a class="service-node" href="/arkime/">
+                    <span class="hexagon">
+                        <span class="hexagon-inner"><img class="service-icon" src="assets/img/arkime.svg" alt="Arkime" /></span>
+                    </span>
+                    <span class="service-name">Sessions</span>
+                </a>
 
-                <div class="feature-card">
-                    <a href="/arkime/cyberchef.html">
-                        <img class="feature-icon" src="assets/img/cyberchef.svg" alt="CyberChef" />
-                        <h3>Convertir des données</h3>
-                    </a>
-                    <p>Analysez et manipulez vos données grâce à cette application web dédiée au chiffrement, à l'encodage, à la compression et à l'analyse de données.</p>
-                </div>
+                <a class="service-node" href="MALCOLM_NETBOX_URL_REPLACER">
+                    <span class="hexagon">
+                        <span class="hexagon-inner"><img class="service-icon" src="assets/img/netbox_icon.svg" alt="NetBox" /></span>
+                    </span>
+                    <span class="service-name">Actifs</span>
+                </a>
 
-                <!-- File Uploader — SVG inline pour éviter la dépendance Bootstrap Icons -->
-                <div class="feature-card">
-                    <a href="/upload/">
-                        <svg class="icon-upload" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                            <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                        </svg>
-                        <h3>Importer des données</h3>
-                    </a>
-                    <p>Téléversez des fichiers PCAP précédemment capturés ou des journaux Zeek archivés pour une analyse.</p>
-                </div>
+                <a class="service-node" href="/arkime/cyberchef.html">
+                    <span class="hexagon">
+                        <span class="hexagon-inner"><img class="service-icon" src="assets/img/cyberchef.svg" alt="CyberChef" /></span>
+                    </span>
+                    <span class="service-name">Conversion</span>
+                </a>
 
-                <!-- User Management — SVG inline -->
-                <div class="feature-card">
-                    <a href="MALCOLM_AUTH_URL_REPLACER">
-                        <svg class="icon-person" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.029 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
-                        </svg>
-                        <h3>Gérer les comptes</h3>
-                    </a>
-                    <p>L'administrateur peut gérer les utilisateurs de cette plateforme : créer, modifier ou supprimer des comptes.</p>
-                </div>
+                <a class="service-node" href="/upload/">
+                    <span class="hexagon">
+                        <span class="hexagon-inner">
+                            <svg class="service-icon symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 16V4" />
+                                <path d="m7 9 5-5 5 5" />
+                                <path d="M20 15v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4" />
+                            </svg>
+                        </span>
+                    </span>
+                    <span class="service-name">Import</span>
+                </a>
+
+                <a class="service-node" href="MALCOLM_AUTH_URL_REPLACER">
+                    <span class="hexagon">
+                        <span class="hexagon-inner">
+                            <svg class="service-icon symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="8" r="4" />
+                                <path d="M4 21a8 8 0 0 1 16 0" />
+                            </svg>
+                        </span>
+                    </span>
+                    <span class="service-name">Utilisateurs</span>
+                </a>
 
             </div>
         </section>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <p>&copy; 2026 Oculox - Plateforme de supervision de la sécurité OT</p>
+        <footer class="site-footer">
+            <span>© 2026 Oculox</span>
+            <span>Cybersécurité industrielle</span>
         </footer>
 
-        <script src="js/bootstrap.bundle.min.js"></script>
-        <script src="js/scripts.js"></script>
         <script>
-            // ===== DARK / LIGHT MODE =====
-            const toggle = document.getElementById('themeToggle');
-            const html   = document.documentElement;
+            (() => {
+                const root = document.documentElement;
+                const toggle = document.getElementById('themeToggle');
+                const label = document.getElementById('themeLabel');
+                const savedTheme = localStorage.getItem('oculox-theme');
+                const initialTheme = savedTheme === 'light' ? 'light' : 'dark';
 
-            // Restore saved preference
-            const saved = localStorage.getItem('oculox-theme');
-            if (saved === 'dark') {
-                html.setAttribute('data-theme', 'dark');
-                toggle.checked = true;
-            }
+                const setTheme = (theme) => {
+                    const isDark = theme === 'dark';
+                    root.setAttribute('data-theme', theme);
+                    toggle.setAttribute('aria-pressed', String(isDark));
+                    label.textContent = isDark ? 'Dark' : 'Light';
+                    localStorage.setItem('oculox-theme', theme);
+                };
 
-            toggle.addEventListener('change', () => {
-                const isDark = toggle.checked;
-                html.setAttribute('data-theme', isDark ? 'dark' : 'light');
-                localStorage.setItem('oculox-theme', isDark ? 'dark' : 'light');
-            });
+                setTheme(initialTheme);
+                toggle.addEventListener('click', () => {
+                    setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+                });
+            })();
         </script>
     </body>
 </html>

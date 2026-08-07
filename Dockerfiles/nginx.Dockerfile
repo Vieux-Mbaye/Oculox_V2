@@ -301,7 +301,7 @@ RUN set -x ; \
   find /usr/share/nginx/html/ -type d -exec chmod 755 "{}" \; ; \
   find /usr/share/nginx/html/ -type f -exec chmod 644 "{}" \; ; \
   cd /usr/share/nginx/html/assets/img ; \
-  ln -s ./Oculox_logo.png ./bg-masthead.png ; \
+  ln -s ./logo_Oculox.png ./bg-masthead.png ; \
   sed -i '/bootstrap-icons\.woff/ { s|\./fonts/|./|g; s|[?][^")]*||g }' /usr/share/nginx/html/css/bootstrap-icons.css
 
 COPY --from=docbuild /site/_site /usr/share/nginx/html/readme
@@ -317,8 +317,11 @@ ADD --chmod=644 nginx/supervisord.conf /etc/
 ADD --chmod=644 docs/images/favicon/*.png /usr/share/nginx/html/assets/img/
 ADD --chmod=644 docs/images/icon/*.png /usr/share/nginx/html/assets/img/
 ADD --chmod=644 docs/images/icon/*.svg /usr/share/nginx/html/assets/img/
-ADD --chmod=644 dev/branding/oculox-icon.png /usr/share/nginx/html/assets/oculox-icon.png
-ADD --chmod=644 dev/branding/oculox-icon.png /usr/share/nginx/html/oculox-icon.png
+ADD --chmod=644 dev/branding/logo_Oculox.png /usr/share/nginx/html/assets/img/logo_Oculox.png
+ADD --chmod=644 dev/branding/icone_logo.png /usr/share/nginx/html/assets/img/icone_logo.png
+ADD --chmod=644 dev/branding/icone_logo.png /usr/share/nginx/html/assets/oculox-icon.png
+ADD --chmod=644 dev/branding/icone_logo.png /usr/share/nginx/html/oculox-icon.png
+ADD --chmod=644 dev/branding/icone_logo.png /usr/share/nginx/html/favicon.ico
 ADD --chmod=644 docs/images/logo/*.png /usr/share/nginx/html/assets/img/
 ADD --chmod=644 docs/images/logo/*.svg /usr/share/nginx/html/assets/img/
 

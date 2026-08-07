@@ -58,7 +58,7 @@ CONFIG_ITEM_MALCOLM_PROFILE = ConfigItem(
     default_value=PROFILE_MALCOLM,
     choices=[PROFILE_MALCOLM, PROFILE_HEDGEHOG],
     validator=lambda x: x in [PROFILE_MALCOLM, PROFILE_HEDGEHOG],
-    question='Select the run profile: full Malcolm suite or capture-only ("Hedgehog mode")',
+    question='Select the run profile: full Oculox suite or capture-only ("Hedgehog mode")',
     widget_type=WidgetType.SELECT,
 )
 
@@ -85,11 +85,11 @@ CONFIG_ITEM_IMAGE_ARCH = ConfigItem(
 
 CONFIG_ITEM_REACHBACK_REQUEST_ACL = ListOfStringsConfigItem(
     key=KEY_CONFIG_ITEM_REACHBACK_REQUEST_ACL,
-    label="Malcolm Reachback ACL",
+    label="Oculox Reachback ACL",
     default_value=[],
     accept_blank=True,
     validator=lambda x: (isinstance(x, list) and all(isinstance(addr, str) and isipaddress(addr) for addr in x)),
-    question="Comma-separated list of IP addresses for ACL for artifact reachback from Malcolm",
+    question="Comma-separated list of IP addresses for ACL for artifact reachback from Oculox",
     widget_type=WidgetType.TEXT,
 )
 

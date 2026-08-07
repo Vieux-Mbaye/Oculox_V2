@@ -484,7 +484,7 @@ button[type="submit"]:hover {
 
     <!-- Logo image uniquement -->
     <img class="tx-nav-logo"
-         src="Oculox_logo.png"
+         src="icone_logo.png"
          alt="Oculox"
          onerror="this.style.display='none'">
 

@@ -43,18 +43,18 @@ data_source:
 
 opensearchDashboards:
   branding:
-    applicationTitle: "Oculos Dashboards"
+    applicationTitle: "Oculox Dashboards"
     useExpandedHeader: false
     logo:
-      defaultUrl: "/assets/img/Talixman_logo.png"
-      darkModeUrl: "/assets/img/Talixman_logo.png"
+      defaultUrl: "/assets/img/logo_Oculox.png"
+      darkModeUrl: "/assets/img/logo_Oculox.png"
     mark:
-      defaultUrl: "/assets/img/X.png"
-      darkModeUrl: "/assets/img/X.png"
+      defaultUrl: "/assets/img/icone_logo.png"
+      darkModeUrl: "/assets/img/icone_logo.png"
     loadingLogo:
-      defaultUrl: "/assets/img/Talixman_logo.png"
-      darkModeUrl: "/assets/img/Talixman_logo.png"
-    faviconUrl: "/assets/img/X.png"
+      defaultUrl: "/assets/img/logo_Oculox.png"
+      darkModeUrl: "/assets/img/logo_Oculox.png"
+    faviconUrl: "/assets/img/icone_logo.png"
 
 
 map:

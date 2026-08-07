@@ -29,19 +29,19 @@ CONFIG_ITEM_AUTO_TWEAKS = ConfigItem(
 
 CONFIG_ITEM_LOAD_MALCOLM_IMAGES = ConfigItem(
     key=KEY_INSTALLATION_ITEM_LOAD_MALCOLM_IMAGES,
-    label="Load Malcolm Images From Provided Image File",
+    label="Load Oculox Images From Provided Image File",
     default_value=False,
     validator=lambda x: isinstance(x, bool),
-    question="Load Malcolm container images from provided image file?",
+    question="Load Oculox container images from provided image file?",
     widget_type=WidgetType.CHECKBOX,
 )
 
 CONFIG_ITEM_PULL_MALCOLM_IMAGES = ConfigItem(
     key=KEY_INSTALLATION_ITEM_PULL_MALCOLM_IMAGES,
-    label="Pull Malcolm Images",
+    label="Pull Oculox Images",
     default_value=False,
     validator=lambda x: isinstance(x, bool),
-    question="Pull Malcolm images from container registry?",
+    question="Pull Oculox images from container registry?",
     widget_type=WidgetType.CHECKBOX,
     metadata={
         "visible_when_runtime": "docker",

@@ -66,7 +66,7 @@ CONFIG_ITEM_ZEEK_DISABLE_ICS_ALL = ConfigItem(
     label="Enable Zeek ICS/OT Analyzers",
     default_value=True,
     validator=lambda x: isinstance(x, bool),
-    question="Is Malcolm being used to monitor an Operational Technology/Industrial Control Systems (OT/ICS) network?",
+    question="Is Oculox being used to monitor an Operational Technology/Industrial Control Systems (OT/ICS) network?",
     widget_type=WidgetType.CHECKBOX,
 )
 
@@ -75,7 +75,7 @@ CONFIG_ITEM_ZEEK_DISABLE_BEST_GUESS_ICS = ConfigItem(
     label='Enable Zeek ICS "Best Guess"',
     default_value=True,
     validator=lambda x: isinstance(x, bool),
-    question='Should Malcolm use "best guess" to identify potential OT/ICS traffic with Zeek?',
+    question='Should Oculox use "best guess" to identify potential OT/ICS traffic with Zeek?',
     widget_type=WidgetType.CHECKBOX,
 )
 

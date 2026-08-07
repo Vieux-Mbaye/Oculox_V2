@@ -44,7 +44,7 @@ CONFIG_ITEM_CLEAN_UP_OLD_ARTIFACTS = ConfigItem(
     label="Clean Up Artifacts",
     default_value=False,
     validator=lambda x: isinstance(x, bool),
-    question="Should Malcolm manage storage by removing the oldest data when necessary?",
+    question="Should Oculox manage storage by removing the oldest data when necessary?",
     widget_type=WidgetType.CHECKBOX,
 )
 

@@ -1,6 +1,6 @@
 {
   "type": "monitor",
-  "name": "Malcolm API Loopback Monitor",
+  "name": "Oculox API Loopback Monitor",
   "monitor_type": "query_level_monitor",
   "enabled": false,
   "schedule": {
@@ -45,7 +45,7 @@
   "triggers": [
     {
       "query_level_trigger": {
-        "name": "Malcolm API Loopback Trigger",
+        "name": "Oculox API Loopback Trigger",
         "severity": "4",
         "condition": {
           "script": {
@@ -55,7 +55,7 @@
         },
         "actions": [
           {
-            "name": "Malcolm API Loopback Action",
+            "name": "Oculox API Loopback Action",
             "destination_id": "malcolm-api-loopback-webhook",
             "message_template": {
               "source": "{\n  \"alert\": {\n    \"monitor\": {\n      \"name\": \"{{ctx.monitor.name}}\"\n    },\n    \"trigger\": {\n      \"name\": \"{{ctx.trigger.name}}\",\n      \"severity\": {{ctx.trigger.severity}}\n    },\n    \"period\": {\n      \"start\": \"{{ctx.periodStart}}\",\n      \"end\": \"{{ctx.periodEnd}}\"\n    },\n    \"results\": {{#toJson}}ctx.results{{/toJson}},\n    \"body\": \"{{#toJson}}ctx.payload{{/toJson}}\",\n    \"alert\": \"{{ctx.alert.id}}\",\n    \"error\": \"{{ctx.error}}\"\n  }\n}",

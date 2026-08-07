@@ -2,8 +2,8 @@
   "config_id": "malcolm-api-loopback-webhook",
   "name": "malcolm-api-loopback-webhook",
   "config": {
-    "name": "Malcolm API Loopback Webhook",
-    "description": "Malcolm API webhook to index OpenSearch alerts as session documents",
+    "name": "Oculox API Loopback Webhook",
+    "description": "Oculox API webhook to index OpenSearch alerts as session documents",
     "config_type": "webhook",
     "webhook": {
       "url": "http://api:5000/mapi/alert",

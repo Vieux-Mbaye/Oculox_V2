@@ -44,7 +44,7 @@ class AuthView(BaseView):
         # Description
         description = customtkinter.CTkLabel(
             self.frame,
-            text="Configure authentication settings for Malcolm",
+            text="Configure authentication settings for Oculox",
             font=customtkinter.CTkFont(size=12),
         )
         description.grid(row=1, column=0, columnspan=3, padx=20, pady=(0, 20), sticky="w")
@@ -79,7 +79,7 @@ class AuthView(BaseView):
         # Description
         description = customtkinter.CTkLabel(
             self.frame,
-            text="Select the authentication method for Malcolm",
+            text="Select the authentication method for Oculox",
             font=customtkinter.CTkFont(size=12),
         )
         description.grid(row=row, column=0, columnspan=3, padx=20, pady=(0, 10), sticky="w")
@@ -149,7 +149,7 @@ class AuthView(BaseView):
         self.behind_reverse_proxy_var = customtkinter.BooleanVar(value=False)
         self.behind_reverse_proxy_checkbox = customtkinter.CTkCheckBox(
             self.frame,
-            text="Malcolm is running behind another reverse proxy (Traefik, Caddy, etc.)",
+            text="Oculox is running behind another reverse proxy (Traefik, Caddy, etc.)",
             variable=self.behind_reverse_proxy_var,
             command=self._on_behind_reverse_proxy_change,
             onvalue=True,
