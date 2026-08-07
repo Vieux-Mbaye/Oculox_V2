@@ -43,6 +43,10 @@ check_sha256 "$FULL_LOGO_SHA256" docs/images/logo/logo_Oculox.png
 grep -q '<title>Oculox | Sécurité OT</title>' nginx/landingpage/index.html
 grep -q 'class="brand-logo" src="assets/img/icone_logo.png"' nginx/landingpage/index.html
 grep -q 'class="hero-logo" src="assets/img/logo_Oculox.png"' nginx/landingpage/index.html
+grep -q 'class="traffic-canvas" id="trafficCanvas"' nginx/landingpage/index.html
+grep -q 'class="hero-blue-glow"' nginx/landingpage/index.html
+grep -q 'const buildTrafficScene = () =>' nginx/landingpage/index.html
+grep -q 'window.requestAnimationFrame(animateTraffic)' nginx/landingpage/index.html
 grep -q 'upload/icone_logo.png' file-upload/site/index.html
 grep -q 'upload/logo_Oculox.png' file-upload/site/index.html
 grep -q 'src="icone_logo.png"' htadmin/src/includes/head.php

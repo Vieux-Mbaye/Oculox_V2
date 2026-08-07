@@ -26,6 +26,7 @@
                 --line: rgba(120, 190, 215, 0.20);
                 --line-strong: rgba(34, 211, 238, 0.58);
                 --grid: rgba(120, 190, 215, 0.055);
+                --hero-glow: rgba(34, 211, 238, 0.20);
                 --shadow: rgba(0, 0, 0, 0.45);
             }
 
@@ -42,6 +43,7 @@
                 --line: rgba(11, 58, 77, 0.16);
                 --line-strong: rgba(14, 127, 155, 0.56);
                 --grid: rgba(11, 58, 77, 0.05);
+                --hero-glow: rgba(14, 127, 155, 0.14);
                 --shadow: rgba(11, 58, 77, 0.14);
             }
 
@@ -97,19 +99,45 @@
                 position: relative;
                 min-height: 590px;
                 overflow: hidden;
-                background-color: var(--page);
+                background: radial-gradient(circle at 50% -10%, var(--surface-strong) 0%, var(--page) 62%);
                 border-bottom: 1px solid var(--line);
             }
 
-            .top-band::before {
+            .traffic-canvas,
+            .traffic-grid,
+            .hero-blue-glow {
                 position: absolute;
                 inset: 0;
+                pointer-events: none;
+            }
+
+            .traffic-canvas {
+                z-index: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0.9;
+            }
+
+            .traffic-grid {
+                z-index: 0;
                 background-image:
                     linear-gradient(var(--grid) 1px, transparent 1px),
                     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
                 background-size: 64px 64px;
-                content: "";
-                pointer-events: none;
+                mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+                -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+            }
+
+            .hero-blue-glow {
+                z-index: 0;
+                top: -280px;
+                right: auto;
+                bottom: auto;
+                left: 50%;
+                width: 1100px;
+                height: 760px;
+                transform: translateX(-50%);
+                background: radial-gradient(closest-side, var(--hero-glow), rgba(34, 211, 238, 0));
             }
 
             .site-header {
@@ -564,6 +592,9 @@
     </head>
     <body>
         <div class="top-band">
+            <canvas class="traffic-canvas" id="trafficCanvas" aria-hidden="true"></canvas>
+            <div class="traffic-grid" aria-hidden="true"></div>
+            <div class="hero-blue-glow" aria-hidden="true"></div>
             <header class="site-header">
                 <a href="/" target="_self" aria-label="Accueil Oculox">
                     <img class="brand-logo" src="assets/img/icone_logo.png" alt="Oculox" />
@@ -666,8 +697,257 @@
                 const root = document.documentElement;
                 const toggle = document.getElementById('themeToggle');
                 const label = document.getElementById('themeLabel');
+                const canvas = document.getElementById('trafficCanvas');
                 const savedTheme = localStorage.getItem('oculox-theme');
                 const initialTheme = savedTheme === 'light' ? 'light' : 'dark';
+                let scene;
+                let width = 0;
+                let height = 0;
+
+                const randomBetween = (min, max) => min + Math.random() * (max - min);
+
+                const buildTrafficScene = () => {
+                    const box = canvas.getBoundingClientRect();
+                    const nextWidth = Math.round(box.width);
+                    const nextHeight = Math.round(box.height);
+                    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+                    if (!nextWidth || !nextHeight || (width === nextWidth && height === nextHeight && scene)) return;
+                    width = nextWidth;
+                    height = nextHeight;
+                    canvas.width = width * pixelRatio;
+                    canvas.height = height * pixelRatio;
+                    canvas.getContext('2d').setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+                    const levels = [0.16, 0.38, 0.62, 0.86];
+                    const buses = levels.map((level, index) => ({
+                        y: Math.round(height * level) + 0.5,
+                        x0: -20,
+                        x1: width + 20,
+                        weight: index === 1 || index === 2 ? 1.4 : 1
+                    }));
+                    const kinds = ['plc', 'sensor', 'valve', 'hmi', 'drive'];
+                    const devices = [];
+                    const drops = [];
+                    const step = Math.max(150, width / 7);
+
+                    buses.forEach((bus, busIndex) => {
+                        let x = randomBetween(30, step * 0.7);
+                        while (x < width - 20) {
+                            const up = (busIndex + Math.round(x)) % 2 === 0 ? -1 : 1;
+                            const length = randomBetween(26, 58);
+                            const kind = kinds[Math.floor(Math.random() * kinds.length)];
+                            const deviceY = bus.y + up * length;
+                            drops.push({ x: Math.round(x) + 0.5, y0: bus.y, y1: deviceY });
+                            devices.push({
+                                x: Math.round(x) + 0.5,
+                                y: deviceY,
+                                kind,
+                                up,
+                                size: kind === 'plc' ? randomBetween(11, 15) : kind === 'hmi' ? randomBetween(12, 16) : randomBetween(5, 7.5),
+                                phase: Math.random() * Math.PI * 2,
+                                alarm: Math.random() < 0.08
+                            });
+                            x += randomBetween(step * 0.55, step * 1.15);
+                        }
+                    });
+
+                    const risers = [];
+                    for (let index = 0; index < buses.length - 1; index += 1) {
+                        const count = 1 + Math.floor(Math.random() * 2);
+                        for (let item = 0; item < count; item += 1) {
+                            risers.push({
+                                x: Math.round(randomBetween(width * 0.08, width * 0.92)) + 0.5,
+                                y0: buses[index].y,
+                                y1: buses[index + 1].y
+                            });
+                        }
+                    }
+
+                    const packets = [];
+                    buses.forEach((bus, index) => {
+                        const count = 2 + (index % 2);
+                        for (let item = 0; item < count; item += 1) {
+                            packets.push({
+                                type: 'horizontal',
+                                y: bus.y,
+                                x: randomBetween(0, width),
+                                speed: randomBetween(0.5, 1.25) * (index % 2 ? -1 : 1),
+                                length: randomBetween(26, 64)
+                            });
+                        }
+                    });
+                    risers.forEach((riser) => packets.push({
+                        type: 'vertical',
+                        x: riser.x,
+                        y: randomBetween(riser.y0, riser.y1),
+                        y0: riser.y0,
+                        y1: riser.y1,
+                        speed: randomBetween(0.35, 0.8),
+                        length: randomBetween(18, 34)
+                    }));
+
+                    scene = { buses, devices, drops, risers, packets, sweep: 0 };
+                };
+
+                const drawTrafficScene = () => {
+                    if (!scene) return;
+                    const context = canvas.getContext('2d');
+                    const time = performance.now();
+                    const dark = root.getAttribute('data-theme') !== 'light';
+                    const accent = dark ? '34,211,238' : '14,127,155';
+                    const wireColor = dark ? '160,215,235' : '11,58,77';
+                    const wire = (alpha) => `rgba(${wireColor},${alpha})`;
+                    const cyan = (alpha) => `rgba(${accent},${alpha})`;
+
+                    context.clearRect(0, 0, width, height);
+                    context.lineCap = 'round';
+                    scene.buses.forEach((bus) => {
+                        context.strokeStyle = wire(dark ? 0.14 : 0.13);
+                        context.lineWidth = bus.weight;
+                        context.beginPath();
+                        context.moveTo(bus.x0, bus.y);
+                        context.lineTo(bus.x1, bus.y);
+                        context.stroke();
+                    });
+
+                    context.lineWidth = 1;
+                    context.strokeStyle = wire(0.10);
+                    context.beginPath();
+                    scene.risers.forEach((riser) => {
+                        context.moveTo(riser.x, riser.y0);
+                        context.lineTo(riser.x, riser.y1);
+                    });
+                    scene.drops.forEach((drop) => {
+                        context.moveTo(drop.x, drop.y0);
+                        context.lineTo(drop.x, drop.y1);
+                    });
+                    context.stroke();
+
+                    scene.devices.forEach((device) => {
+                        const blink = 0.5 + 0.5 * Math.sin(time * 0.0018 + device.phase);
+                        const activity = dark ? 0.35 + 0.5 * blink : 0.3 + 0.45 * blink;
+                        context.lineWidth = 1;
+                        context.strokeStyle = wire(dark ? 0.28 : 0.26);
+                        context.fillStyle = dark ? 'rgba(6,14,20,0.9)' : 'rgba(255,255,255,0.92)';
+
+                        if (device.kind === 'plc' || device.kind === 'hmi') {
+                            const deviceWidth = device.size * 1.7;
+                            const deviceHeight = device.size;
+                            const x = device.x - deviceWidth / 2;
+                            const y = device.y - (device.up < 0 ? deviceHeight : 0);
+                            context.beginPath();
+                            context.rect(x, y, deviceWidth, deviceHeight);
+                            context.fill();
+                            context.stroke();
+                            for (let index = 0; index < 3; index += 1) {
+                                context.fillStyle = cyan(index === 0 ? activity : 0.18 + 0.12 * blink);
+                                context.fillRect(x + 3 + index * 4, y + deviceHeight - 3.5, 2.2, 2);
+                            }
+                            if (device.kind === 'hmi') {
+                                context.strokeStyle = cyan(0.22);
+                                context.beginPath();
+                                context.moveTo(x + 3, y + 3.5);
+                                context.lineTo(x + deviceWidth - 3, y + 3.5);
+                                context.stroke();
+                            }
+                        } else if (device.kind === 'valve') {
+                            const radius = device.size;
+                            context.beginPath();
+                            context.moveTo(device.x - radius, device.y - radius * 0.8);
+                            context.lineTo(device.x, device.y);
+                            context.lineTo(device.x - radius, device.y + radius * 0.8);
+                            context.closePath();
+                            context.moveTo(device.x + radius, device.y - radius * 0.8);
+                            context.lineTo(device.x, device.y);
+                            context.lineTo(device.x + radius, device.y + radius * 0.8);
+                            context.closePath();
+                            context.fill();
+                            context.stroke();
+                        } else if (device.kind === 'drive') {
+                            const radius = device.size;
+                            context.beginPath();
+                            context.arc(device.x, device.y, radius, 0, Math.PI * 2);
+                            context.fill();
+                            context.stroke();
+                            context.strokeStyle = cyan(0.3 + 0.3 * blink);
+                            context.beginPath();
+                            context.arc(device.x, device.y, radius * 0.55, time * 0.002 % (Math.PI * 2), time * 0.002 % (Math.PI * 2) + 2.2);
+                            context.stroke();
+                        } else {
+                            const radius = device.size * 0.7;
+                            context.beginPath();
+                            context.arc(device.x, device.y, radius, 0, Math.PI * 2);
+                            context.fill();
+                            context.stroke();
+                            context.fillStyle = cyan(activity);
+                            context.beginPath();
+                            context.arc(device.x, device.y, radius * 0.42, 0, Math.PI * 2);
+                            context.fill();
+                        }
+
+                        if (device.alarm) {
+                            const pulse = 0.5 + 0.5 * Math.sin(time * 0.006 + device.phase);
+                            context.strokeStyle = dark ? `rgba(255,176,86,${0.25 + 0.5 * pulse})` : `rgba(200,110,20,${0.2 + 0.4 * pulse})`;
+                            context.beginPath();
+                            context.arc(device.x, device.y, device.size * 1.7, 0, Math.PI * 2);
+                            context.stroke();
+                        }
+                    });
+
+                    scene.packets.forEach((packet) => {
+                        if (packet.type === 'horizontal') {
+                            packet.x += packet.speed;
+                            if (packet.speed > 0 && packet.x - packet.length > width) packet.x = -packet.length;
+                            if (packet.speed < 0 && packet.x + packet.length < 0) packet.x = width + packet.length;
+                            const direction = Math.sign(packet.speed);
+                            const trail = context.createLinearGradient(packet.x - direction * packet.length, 0, packet.x, 0);
+                            trail.addColorStop(0, cyan(0));
+                            trail.addColorStop(1, cyan(dark ? 0.85 : 0.7));
+                            context.strokeStyle = trail;
+                            context.lineWidth = 1.8;
+                            context.beginPath();
+                            context.moveTo(packet.x - direction * packet.length, packet.y);
+                            context.lineTo(packet.x, packet.y);
+                            context.stroke();
+                            const glow = context.createRadialGradient(packet.x, packet.y, 0, packet.x, packet.y, 7);
+                            glow.addColorStop(0, cyan(dark ? 0.7 : 0.5));
+                            glow.addColorStop(1, cyan(0));
+                            context.fillStyle = glow;
+                            context.beginPath();
+                            context.arc(packet.x, packet.y, 7, 0, Math.PI * 2);
+                            context.fill();
+                        } else {
+                            packet.y += packet.speed;
+                            const low = Math.min(packet.y0, packet.y1);
+                            const high = Math.max(packet.y0, packet.y1);
+                            if (packet.y > high) packet.y = low;
+                            const trail = context.createLinearGradient(0, packet.y - packet.length, 0, packet.y);
+                            trail.addColorStop(0, cyan(0));
+                            trail.addColorStop(1, cyan(dark ? 0.6 : 0.5));
+                            context.strokeStyle = trail;
+                            context.lineWidth = 1.4;
+                            context.beginPath();
+                            context.moveTo(packet.x, packet.y - packet.length);
+                            context.lineTo(packet.x, packet.y);
+                            context.stroke();
+                        }
+                    });
+
+                    scene.sweep = (scene.sweep + 0.9) % (width + 340);
+                    const sweepX = scene.sweep - 170;
+                    const sweep = context.createLinearGradient(sweepX - 170, 0, sweepX + 170, 0);
+                    sweep.addColorStop(0, cyan(0));
+                    sweep.addColorStop(0.5, cyan(dark ? 0.05 : 0.04));
+                    sweep.addColorStop(1, cyan(0));
+                    context.fillStyle = sweep;
+                    context.fillRect(sweepX - 170, 0, 340, height);
+                };
+
+                const animateTraffic = () => {
+                    drawTrafficScene();
+                    window.requestAnimationFrame(animateTraffic);
+                };
 
                 const setTheme = (theme) => {
                     const isDark = theme === 'dark';
@@ -678,6 +958,10 @@
                 };
 
                 setTheme(initialTheme);
+                buildTrafficScene();
+                window.addEventListener('resize', buildTrafficScene);
+                if (window.ResizeObserver) new ResizeObserver(buildTrafficScene).observe(canvas.parentElement);
+                window.requestAnimationFrame(animateTraffic);
                 toggle.addEventListener('click', () => {
                     setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
                 });
