@@ -162,6 +162,7 @@ class LinuxInstaller(BaseInstaller):
                     'apache2-utils',
                     'make',
                     'openssl',
+                    'python3-yaml',
                     'xz-utils',
                 ]
             )
@@ -178,6 +179,7 @@ class LinuxInstaller(BaseInstaller):
                     'httpd-tools',
                     'make',
                     'openssl',
+                    'python3-pyyaml',
                     'xz',
                 ]
             )

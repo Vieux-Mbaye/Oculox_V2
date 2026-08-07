@@ -119,6 +119,36 @@ protect_existing_role() {
     fi
 }
 
+ensure_python_yaml() {
+    if python3 -c 'import yaml' >/dev/null 2>&1; then
+        return
+    fi
+
+    printf '%s\n' 'Dépendance Python PyYAML absente. Installation du paquet système...'
+    if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y python3-yaml
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y python3-pyyaml
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y python3-pyyaml
+    elif command -v zypper >/dev/null 2>&1; then
+        sudo zypper --non-interactive install python3-PyYAML
+    else
+        cat >&2 <<'EOF'
+PyYAML est requis pour générer la configuration Filebeat résiliente.
+Installez le paquet PyYAML fourni par votre système, puis relancez la commande.
+EOF
+        exit 1
+    fi
+
+    python3 -c 'import yaml' >/dev/null 2>&1 || {
+        printf '%s\n' \
+            'Le paquet PyYAML a été installé, mais le Python actif ne peut pas le charger.' >&2
+        exit 1
+    }
+}
+
 prepare_principal() {
     [[ -n "$SERVER_NAME" ]] || { printf '%s\n' '--server-name est obligatoire' >&2; exit 2; }
     ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
@@ -168,6 +198,7 @@ prepare_hedgehog() {
 
 prepare_role() {
     protect_existing_role
+    ensure_python_yaml
     if [[ "$ROLE" == principal ]]; then
         prepare_principal
     else
