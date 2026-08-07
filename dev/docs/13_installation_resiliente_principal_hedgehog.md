@@ -62,11 +62,14 @@ Cette commande réalise la chaîne suivante :
 5. la configuration Compose officielle et la surcharge de résilience Oculox
    sont fusionnées dans un fichier local sous `dev/generated/` ;
 6. le profil `malcolm` est imposé pour éviter une divergence de rôle ;
-7. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
-8. l'autorité Oculox et le certificat serveur sont générés localement ;
-9. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
-10. les configurations Principal et Hedgehog sont validées sans les démarrer ;
-11. les images sont récupérées et le script officiel `scripts/start` démarre le
+7. le lanceur vérifie l'accès non privilégié à Docker avant d'appeler les outils
+   d'authentification ; si l'installateur vient d'ajouter l'opérateur au groupe
+   `docker`, il recharge automatiquement ce groupe dans un sous-processus ;
+8. `scripts/auth_setup` crée interactivement les comptes et secrets officiels ;
+9. l'autorité Oculox et le certificat serveur sont générés localement ;
+10. Filebeat est configuré vers `logstash:5044` et `logstash-2:5044` ;
+11. les configurations Principal et Hedgehog sont validées sans les démarrer ;
+12. les images sont récupérées et le script officiel `scripts/start` démarre le
     profil Principal complet.
 
 La reprise de propriété de `config/` est nécessaire parce que l'installation
@@ -88,14 +91,26 @@ incomplète de montages et supprime les erreurs de type `bind source path does
 not exist` lors d'une installation neuve.
 
 Les mots de passe ne sont jamais fournis comme arguments. Ils restent gérés par
-l'assistant officiel. Si l'installation de Docker exige un redémarrage ou une
-nouvelle session pour appliquer les groupes système, le lanceur termine toute la
-configuration puis s'arrête proprement avant le démarrage. Après reconnexion,
-une seule commande reprend l'opération :
+l'assistant officiel. Lorsqu'une installation neuve ajoute l'opérateur au groupe
+`docker`, le noyau ne modifie pas les groupes du shell déjà ouvert. Le lanceur
+détecte ce cas avant `scripts/auth_setup` et reprend automatiquement sous l'UID
+de l'opérateur avec `docker` comme groupe primaire. `sudo` sert uniquement à
+établir ce groupe dans le nouveau processus : `auth_setup` ne s'exécute pas avec
+l'UID `root`, et les secrets restent donc la propriété de l'opérateur.
+
+Si la reprise automatique est impossible (service Docker arrêté ou groupe
+absent), le lanceur s'arrête sans réexécuter l'assistant système. Après
+correction ou reconnexion, la commande explicite suivante reprend à l'étape
+d'authentification :
 
 ```bash
-./oculox start
+./oculox resume-install principal --server-name <nom-DNS-ou-IP-du-principal>
 ```
+
+Pour Hedgehog, reprendre avec la commande `resume-install hedgehog` et les mêmes
+options `--principal-host`, `--collector-name` et `--bundle` que lors du premier
+lancement. `resume-install` exige que `config/process.env` existe : elle ne peut
+donc pas masquer une installation système qui n'a jamais abouti.
 
 ## 4. Création D'un Bundle Hedgehog
 

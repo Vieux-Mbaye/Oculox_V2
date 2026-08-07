@@ -7,6 +7,7 @@ COMPOSE_OVERRIDE="${PROJECT_DIR}/dev/compose/docker-compose.dev.yml"
 STATE_FILE="${PROJECT_DIR}/dev/generated/deployment.env"
 RUNTIME_COMPOSE_FILE="${PROJECT_DIR}/dev/generated/docker-compose.runtime.yml"
 COMPOSE_PROJECT_NAME="$(basename "$PROJECT_DIR" | tr '[:upper:]' '[:lower:]')"
+OPERATOR="$(id -un)"
 
 cd "$PROJECT_DIR"
 
@@ -17,6 +18,11 @@ Oculox - installation et exploitation résilientes
 Installation neuve :
   ./oculox install principal --server-name <nom-DNS-ou-IP>
   ./oculox install hedgehog --principal-host <nom-DNS-ou-IP> \
+      --collector-name <nom> --bundle <répertoire-bundle>
+
+Reprise d'une installation interrompue après l'assistant système :
+  ./oculox resume-install principal --server-name <nom-DNS-ou-IP>
+  ./oculox resume-install hedgehog --principal-host <nom-DNS-ou-IP> \
       --collector-name <nom> --bundle <répertoire-bundle>
 
 Préparation d'un dépôt déjà configuré :
@@ -171,6 +177,71 @@ prepare_role() {
     printf 'Préparation %s terminée.\n' "$ROLE"
 }
 
+resume_command() {
+    local -a command=("$PROJECT_DIR/oculox" resume-install "$ROLE")
+    if [[ "$ROLE" == principal ]]; then
+        command+=(--server-name "$SERVER_NAME")
+    else
+        command+=(
+            --principal-host "$PRINCIPAL_HOST"
+            --collector-name "$COLLECTOR_NAME"
+            --bundle "$BUNDLE"
+        )
+    fi
+    printf 'cd %q && exec' "$PROJECT_DIR"
+    printf ' %q' "${command[@]}"
+}
+
+continue_install() {
+    printf 'Étape 2/4 - Authentification et secrets officiels\n'
+    ./scripts/auth_setup
+    printf 'Étape 3/4 - Application du rôle et de la résilience Oculox\n'
+    prepare_role
+    printf 'Étape 4/4 - Démarrage de la plateforme complète\n'
+    read_state
+    compose --profile "$PROFILE" pull
+    official_start
+    ./oculox status
+}
+
+continue_with_docker_access() {
+    local command
+
+    if docker info >/dev/null 2>&1; then
+        continue_install
+        return
+    fi
+
+    command="$(resume_command)"
+    if ! sudo docker info >/dev/null 2>&1; then
+        cat >&2 <<EOF
+Le moteur Docker n'est pas accessible, même avec les privilèges administrateur.
+Vérifiez le service Docker, puis reprenez l'installation avec :
+
+  ${command}
+EOF
+        exit 1
+    fi
+
+    if id -nG "$OPERATOR" | tr ' ' '\n' | grep -qx docker; then
+        printf '%s\n' \
+            'Le groupe docker vient d’être attribué. Reprise automatique avec les nouveaux groupes.'
+        # sudo only establishes the refreshed primary group. The resumed
+        # process still runs with the operator UID, so generated secrets do
+        # not become root-owned.
+        exec sudo -u "$OPERATOR" -g docker -- bash -c "$command"
+    fi
+
+    cat >&2 <<EOF
+Docker fonctionne, mais le compte ${OPERATOR} n'a pas encore un accès non privilégié.
+Ajoutez ce compte au groupe docker si nécessaire, ouvrez une nouvelle session,
+puis reprenez sans relancer l'assistant système :
+
+  ${command}
+EOF
+    exit 1
+}
+
 COMMAND="${1:-}"
 shift || true
 
@@ -202,25 +273,17 @@ case "$COMMAND" in
                 --principal-host "$PRINCIPAL_HOST" \
                 --collector-name "$COLLECTOR_NAME"
         fi
-        printf 'Étape 2/4 - Authentification et secrets officiels\n'
-        ./scripts/auth_setup
-        printf 'Étape 3/4 - Application du rôle et de la résilience Oculox\n'
-        prepare_role
-        printf 'Étape 4/4 - Démarrage de la plateforme complète\n'
-        read_state
-        if ! docker info >/dev/null 2>&1; then
-            cat <<'EOF'
-La configuration Oculox est complète, mais cette session n'a pas encore accès
-au moteur Docker. Redémarrez le serveur ou ouvrez une nouvelle session, puis
-exécutez uniquement :
-
-  ./oculox start
-EOF
-            exit 0
-        fi
-        compose --profile "$PROFILE" pull
-        official_start
-        ./oculox status
+        continue_with_docker_access
+        ;;
+    resume-install)
+        parse_role_options "$@"
+        protect_existing_role
+        [[ -s "$PROJECT_DIR/config/process.env" ]] || {
+            printf '%s\n' \
+                'Configuration absente. Utilisez ./oculox install au lieu de resume-install.' >&2
+            exit 1
+        }
+        continue_with_docker_access
         ;;
     prepare)
         parse_role_options "$@"
