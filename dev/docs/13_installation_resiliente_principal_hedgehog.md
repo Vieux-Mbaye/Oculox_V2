@@ -167,6 +167,12 @@ Les mêmes commandes sont utilisées sur les deux rôles :
 ./oculox stop
 ```
 
+`restart` régénère et réconcilie d'abord le Compose runtime avec les fichiers de
+configuration actifs, puis redémarre les services demandés. Cette étape est
+nécessaire car un simple `docker compose restart` ne peut pas appliquer un
+nouveau port, volume, certificat, paramètre d'environnement ou une nouvelle
+limite de ressources.
+
 `start`, `status` et `stop` lisent le rôle conservé localement dans
 `dev/generated/deployment.env`. Au démarrage, `oculox` génère
 `dev/generated/docker-compose.runtime.yml` en fusionnant le Compose officiel et

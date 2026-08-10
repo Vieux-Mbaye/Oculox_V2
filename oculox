@@ -327,6 +327,11 @@ case "$COMMAND" in
         ;;
     restart)
         read_state
+        # `docker compose restart` only restarts existing containers and does
+        # not apply changed ports, mounts, environment variables or limits.
+        # Reconcile the rendered configuration first through the official
+        # startup path, then preserve the explicit restart semantics.
+        official_start
         compose --profile "$PROFILE" restart "$@"
         ./oculox status
         ;;
