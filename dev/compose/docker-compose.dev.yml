@@ -26,6 +26,10 @@ services:
 
   filebeat:
     restart: unless-stopped
+    # The official "Expose Oculox Service Ports" option publishes Filebeat on
+    # host port 5045. Oculox reserves that host port for the second Logstash
+    # Beats endpoint, so remove the official Filebeat publication.
+    ports: !reset []
     volumes:
       - ./dev/generated/filebeat/filebeat-logs.yml:/usr/share/filebeat-logs/filebeat-logs.yml:ro
       - ./dev/generated/filebeat/filebeat-nginx.yml:/usr/share/filebeat-nginx/filebeat-nginx.yml:ro
@@ -150,7 +154,10 @@ services:
       service: logstash
     hostname: logstash-2
     restart: unless-stopped
-    ports:
+    # `extends` also inherits ports published on the first Logstash by the
+    # official installer. Replace that list completely so this instance owns
+    # only the resilient endpoint 5045 -> 5044.
+    ports: !override
       - "${OCULOX_LOGSTASH_BIND_IP:-0.0.0.0}:5045:5044/tcp"
     volumes:
       - logstash-persistent-queue-2:/logstash-persistent-queue
