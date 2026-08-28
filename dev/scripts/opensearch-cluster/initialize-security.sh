@@ -68,6 +68,9 @@ done
   echo "--admin-dir est obligatoire" >&2
   exit 2
 }
+ADMIN_DIR="$(realpath -- "${ADMIN_DIR}")"
+SECURITY_DIR="$(realpath -- "${SECURITY_DIR}")"
+STATE_DIR="$(realpath -m -- "${STATE_DIR}")"
 for file in admin.crt admin.key ca.crt; do
   [[ -r "${ADMIN_DIR}/${file}" ]] || {
     echo "Fichier administrateur absent: ${ADMIN_DIR}/${file}" >&2
