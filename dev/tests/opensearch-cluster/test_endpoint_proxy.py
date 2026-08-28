@@ -123,6 +123,8 @@ def main() -> None:
             fail(f"missing HAProxy requirement: {required}")
     if "%r" in template or "capture request header Authorization" in template:
         fail("proxy logs must not contain request paths or authorization headers")
+    if "monitor /healthz" in template or "monitor fail -uriif" in template:
+        fail("legacy invalid HAProxy monitor syntax is present")
     if "OCULOX_API_PASSWORD" in template or "oculox_api:" in template:
         fail("the versioned template must not contain credentials")
 

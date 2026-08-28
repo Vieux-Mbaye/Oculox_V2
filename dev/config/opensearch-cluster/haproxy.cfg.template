@@ -26,8 +26,8 @@ frontend opensearch_endpoint
 
 frontend opensearch_endpoint_monitoring
   bind :8404
-  monitor /healthz
-  monitor fail -uriif { nbsrv(opensearch_nodes) lt 1 }
+  monitor-uri /healthz
+  monitor fail if { nbsrv(opensearch_nodes) lt 1 }
   stats enable
   stats uri /stats
   stats show-legends
