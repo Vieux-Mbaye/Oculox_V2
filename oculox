@@ -6,6 +6,7 @@ PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_OVERRIDE="${PROJECT_DIR}/dev/compose/docker-compose.dev.yml"
 STATE_FILE="${PROJECT_DIR}/dev/generated/deployment.env"
 RUNTIME_COMPOSE_FILE="${PROJECT_DIR}/dev/generated/docker-compose.runtime.yml"
+RUNTIME_COMPOSE_SOURCE="${PROJECT_DIR}/dev/generated/docker-compose.runtime.source.yml"
 COMPOSE_PROJECT_NAME="$(basename "$PROJECT_DIR" | tr '[:upper:]' '[:lower:]')"
 OPERATOR="$(id -un)"
 
@@ -16,14 +17,26 @@ usage() {
 Oculox - installation et exploitation résilientes
 
 Installation neuve :
-  ./oculox install principal --server-name <nom-DNS-ou-IP>
+  ./oculox install principal --server-name <nom-DNS-ou-IP> \
+      --opensearch-bundle <répertoire-bundle-core>
   ./oculox install hedgehog --principal-host <nom-DNS-ou-IP> \
-      --collector-name <nom> --bundle <répertoire-bundle>
+      --collector-name <nom> --bundle <répertoire-bundle-beats> \
+      --opensearch-bundle <répertoire-bundle-hedgehog>
+
+Cluster OpenSearch dédié :
+  ./oculox install cluster --endpoint-ip <adresse-IP-VM>
+  ./oculox install cluster --config <cluster.yml>
+  ./oculox cluster start|stop|restart|status|logs|validate|config
+  ./oculox cluster apply --config <cluster.yml>
+  ./oculox cluster client-bundle core <sortie>
+  ./oculox cluster client-bundle hedgehog <sortie>
 
 Reprise d'une installation interrompue après l'assistant système :
-  ./oculox resume-install principal --server-name <nom-DNS-ou-IP>
+  ./oculox resume-install principal --server-name <nom-DNS-ou-IP> \
+      --opensearch-bundle <répertoire-bundle-core>
   ./oculox resume-install hedgehog --principal-host <nom-DNS-ou-IP> \
-      --collector-name <nom> --bundle <répertoire-bundle>
+      --collector-name <nom> --bundle <répertoire-bundle-beats> \
+      --opensearch-bundle <répertoire-bundle-hedgehog>
 
 Préparation d'un dépôt déjà configuré :
   ./oculox prepare principal --server-name <nom-DNS-ou-IP>
@@ -39,6 +52,14 @@ Exploitation :
   ./oculox pull
   ./oculox validate
   ./oculox collector-bundle <nom-collecteur> <nom-DNS-ou-IP-principal> [sortie]
+  ./oculox configure-opensearch-remote --bundle <répertoire-bundle>
+  ./oculox verify clients
+  ./oculox verify ingestion baseline --output <rapport-core.json>
+  ./oculox verify ingestion inject --pcap <fichier.pcap> \
+      --run-id <identifiant> --output <rapport-collecteur.json>
+  ./oculox verify ingestion finalize --baseline <rapport-core.json> \
+      --collector-report <rapport-collecteur.json> --output <rapport-final.json>
+  ./oculox verify failover --reports-dir <répertoire> --output <rapport.json>
 
 L'installation utilise les composants officiels compatibles et applique
 automatiquement l'interface Oculox. Les secrets d'authentification sont
@@ -61,7 +82,13 @@ render_runtime_compose() {
     # overlay. The result contains absolute bind paths, so the upstream
     # lifecycle script can validate and initialize its normal runtime paths.
     install -d -m 0700 "$PROJECT_DIR/dev/generated"
-    compose --profile "$PROFILE" config > "$RUNTIME_COMPOSE_FILE"
+    compose --profile "$PROFILE" config > "$RUNTIME_COMPOSE_SOURCE"
+    ./dev/scripts/render-remote-opensearch-compose.py \
+        --input "$RUNTIME_COMPOSE_SOURCE" \
+        --output "$RUNTIME_COMPOSE_FILE" \
+        --opensearch-env "$PROJECT_DIR/config/opensearch.env" \
+        --clients-dir "$PROJECT_DIR/dev/generated/opensearch-clients"
+    rm -f "$RUNTIME_COMPOSE_SOURCE"
     chmod 0600 "$RUNTIME_COMPOSE_FILE"
 }
 
@@ -94,17 +121,26 @@ parse_role_options() {
     PRINCIPAL_HOST=""
     COLLECTOR_NAME=""
     BUNDLE=""
+    OPENSEARCH_BUNDLE=""
     while (($#)); do
         case "$1" in
             --server-name) shift; SERVER_NAME="${1:-}" ;;
             --principal-host) shift; PRINCIPAL_HOST="${1:-}" ;;
             --collector-name) shift; COLLECTOR_NAME="${1:-}" ;;
             --bundle) shift; BUNDLE="${1:-}" ;;
+            --opensearch-bundle) shift; OPENSEARCH_BUNDLE="${1:-}" ;;
             *) printf 'Option inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
         esac
         shift
     done
     [[ "$ROLE" == principal || "$ROLE" == hedgehog ]] || { usage; exit 2; }
+}
+
+apply_remote_opensearch_bundle() {
+    [[ -n "$OPENSEARCH_BUNDLE" ]] || return 0
+    ./dev/scripts/configure-remote-opensearch.py \
+        --bundle "$OPENSEARCH_BUNDLE" \
+        --role "$ROLE"
 }
 
 protect_existing_role() {
@@ -204,6 +240,7 @@ prepare_role() {
     else
         prepare_hedgehog
     fi
+    apply_remote_opensearch_bundle
     ./dev/scripts/validate-compose.sh
     printf 'Préparation %s terminée.\n' "$ROLE"
 }
@@ -219,11 +256,15 @@ resume_command() {
             --bundle "$BUNDLE"
         )
     fi
+    if [[ -n "$OPENSEARCH_BUNDLE" ]]; then
+        command+=(--opensearch-bundle "$OPENSEARCH_BUNDLE")
+    fi
     printf 'cd %q && exec' "$PROJECT_DIR"
     printf ' %q' "${command[@]}"
 }
 
 continue_install() {
+    apply_remote_opensearch_bundle
     printf 'Étape 2/4 - Authentification et secrets officiels\n'
     ./scripts/auth_setup
     printf 'Étape 3/4 - Application du rôle et de la résilience Oculox\n'
@@ -278,6 +319,11 @@ shift || true
 
 case "$COMMAND" in
     install)
+        if [[ "${1:-}" == cluster || "${1:-}" == opensearch-cluster ]]; then
+            shift
+            ./dev/scripts/opensearch-cluster/manage-cluster.sh install "$@"
+            exit
+        fi
         parse_role_options "$@"
         protect_existing_role
         printf 'Étape 1/4 - Installation système et configuration du socle Oculox\n'
@@ -358,6 +404,33 @@ case "$COMMAND" in
         ;;
     collector-bundle)
         ./dev/scripts/create-collector-bundle.sh "$@"
+        ;;
+    configure-opensearch-remote)
+        ./dev/scripts/configure-remote-opensearch.py "$@"
+        read_state
+        render_runtime_compose
+        docker compose -f "$RUNTIME_COMPOSE_FILE" --profile "$PROFILE" config --quiet
+        printf '%s\n' 'Configuration OpenSearch distante et Compose d’exécution validés.'
+        ;;
+    cluster)
+        ./dev/scripts/opensearch-cluster/manage-cluster.sh "$@"
+        ;;
+    verify)
+        case "${1:-}" in
+            clients)
+                shift
+                ./dev/tests/opensearch-cluster/validate-client-connectivity.py "$@"
+                ;;
+            ingestion)
+                shift
+                ./dev/tests/opensearch-cluster/validate-ingestion-path.py "$@"
+                ;;
+            failover)
+                shift
+                ./dev/tests/opensearch-cluster/summarize-ingestion-failover.py "$@"
+                ;;
+            *) usage; exit 2 ;;
+        esac
         ;;
     *) usage; exit 2 ;;
 esac

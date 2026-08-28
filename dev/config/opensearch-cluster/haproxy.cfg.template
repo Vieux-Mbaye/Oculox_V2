@@ -1,0 +1,42 @@
+global
+  log stdout format raw local0
+  maxconn 2048
+  ssl-default-bind-options ssl-min-ver TLSv1.2
+  ssl-default-server-options ssl-min-ver TLSv1.2
+
+defaults
+  log global
+  mode http
+  option dontlognull
+  option http-keep-alive
+  retries 3
+  timeout http-request 30s
+  timeout connect 5s
+  timeout client 5m
+  timeout server 5m
+  timeout queue 30s
+  log-format "client=%ci:%cp frontend=%ft backend=%b server=%s status=%ST bytes=%B timers=%TR/%Tw/%Tc/%Tr/%Ta termination=%tsc"
+
+frontend opensearch_endpoint
+  bind :9200 ssl crt /usr/local/etc/haproxy/certs/endpoint.pem alpn h2,http/1.1
+  monitor-uri /healthz
+  monitor fail if { nbsrv(opensearch_nodes) lt 1 }
+  http-request set-log-level silent if { path -i /healthz }
+  default_backend opensearch_nodes
+
+frontend opensearch_endpoint_monitoring
+  bind :8404
+  monitor /healthz
+  monitor fail -uriif { nbsrv(opensearch_nodes) lt 1 }
+  stats enable
+  stats uri /stats
+  stats show-legends
+
+backend opensearch_nodes
+  balance roundrobin
+  option httpchk
+  http-check send meth GET uri /_cluster/health?local=true ver HTTP/1.1 hdr Host opensearch-cluster hdr Authorization "Basic __HEALTH_AUTHORIZATION__"
+  http-check expect status 200
+  server opensearch-1 opensearch-1:9200 check check-sni opensearch-1 inter 5s fall 3 rise 2 ssl verify required ca-file /usr/local/etc/haproxy/certs/backend-ca.crt sni str(opensearch-1)
+  server opensearch-2 opensearch-2:9200 check check-sni opensearch-2 inter 5s fall 3 rise 2 ssl verify required ca-file /usr/local/etc/haproxy/certs/backend-ca.crt sni str(opensearch-2)
+  server opensearch-3 opensearch-3:9200 check check-sni opensearch-3 inter 5s fall 3 rise 2 ssl verify required ca-file /usr/local/etc/haproxy/certs/backend-ca.crt sni str(opensearch-3)

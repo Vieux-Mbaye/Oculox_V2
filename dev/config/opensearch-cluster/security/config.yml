@@ -1,0 +1,29 @@
+---
+_meta:
+  type: "config"
+  config_version: 2
+
+config:
+  dynamic:
+    http:
+      anonymous_auth_enabled: false
+      xff:
+        enabled: false
+    authc:
+      basic_internal_auth_domain:
+        description: "Oculox internal service authentication"
+        http_enabled: true
+        transport_enabled: false
+        order: 0
+        http_authenticator:
+          type: basic
+          challenge: true
+        authentication_backend:
+          type: internal
+    kibana:
+      multitenancy_enabled: false
+      private_tenant_enabled: false
+      default_tenant: global_tenant
+      server_username: oculox_dashboards
+      index: ".kibana"
+    do_not_fail_on_forbidden: false

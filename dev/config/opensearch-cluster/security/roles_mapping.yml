@@ -1,0 +1,116 @@
+---
+_meta:
+  type: "rolesmapping"
+  config_version: 2
+
+all_access:
+  reserved: true
+  backend_roles:
+    - "oculox_platform_admin"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+kibana_server:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_server"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+manage_snapshots:
+  reserved: true
+  backend_roles:
+    - "oculox_snapshot_operator"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+logstash:
+  reserved: true
+  backend_roles:
+    - "oculox_logstash_writer"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+oculox_logstash_writer:
+  reserved: true
+  backend_roles:
+    - "oculox_logstash_writer"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+oculox_arkime_service:
+  reserved: true
+  backend_roles:
+    - "oculox_arkime_service"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+oculox_dashboards_helper:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+oculox_api_reader:
+  reserved: true
+  backend_roles:
+    - "oculox_api_reader"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+alerting_full_access:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+anomaly_full_access:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+index_management_full_access:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+notifications_full_access:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+reports_full_access:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []
+
+snapshot_management_full_access:
+  reserved: true
+  backend_roles:
+    - "oculox_dashboards_helper"
+  hosts: []
+  users: []
+  and_backend_roles: []

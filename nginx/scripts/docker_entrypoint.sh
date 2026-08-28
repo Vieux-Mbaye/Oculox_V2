@@ -95,6 +95,7 @@ NGINX_KIBANA_IDARK2DASH_REWRITE_CONF=${NGINX_CONF_DIR}/nginx_idark2dash_rewrite_
 NGINX_RUNTIME_IDARK2DASH_REWRITE_LINK=${NGINX_CONF_DIR}/nginx_idark2dash_rewrite_rt.conf
 # do the same thing for /dashboards URLs, send to kibana if they're using elasticsearch
 NGINX_DASHBOARDS_DASHBOARDS_REWRITE_CONF=${NGINX_CONF_DIR}/nginx_dashboards_rewrite_dashboards.conf
+NGINX_DASHBOARDS_REMOTE_BASIC_REWRITE_CONF=${NGINX_CONF_DIR}/nginx_dashboards_rewrite_remote_basic.conf
 NGINX_KIBANA_DASHBOARDS_REWRITE_CONF=${NGINX_CONF_DIR}/nginx_dashboards_rewrite_kibana.conf
 NGINX_RUNTIME_DASHBOARDS_REWRITE_LINK=${NGINX_CONF_DIR}/nginx_dashboards_rewrite_rt.conf
 
@@ -251,9 +252,14 @@ if [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" == "opensearch-local" ]]; then
   ln -sf "$NGINX_OPENSEARCH_API_CONF" "$NGINX_OPENSEARCH_API_LINK"
 else
   ln -sf "$NGINX_BLANK_CONF" "$NGINX_OPENSEARCH_UPSTREAM_LINK"
-  ln -sf "$NGINX_BLANK_CONF" "$NGINX_DASHBOARDS_UPSTREAM_LINK"
   ln -sf "$NGINX_BLANK_CONF" "$NGINX_OPENSEARCH_MAPI_LINK"
   ln -sf "$NGINX_OPENSEARCH_API_501_CONF" "$NGINX_OPENSEARCH_API_LINK"
+  if [[ "${OPENSEARCH_PRIMARY}" == "opensearch-remote" ]]; then
+    # OpenSearch is remote, but Oculox still runs its local Dashboards service.
+    ln -sf "$NGINX_DASHBOARDS_UPSTREAM_CONF" "$NGINX_DASHBOARDS_UPSTREAM_LINK"
+  else
+    ln -sf "$NGINX_BLANK_CONF" "$NGINX_DASHBOARDS_UPSTREAM_LINK"
+  fi
 fi
 
 if [[ "${NETBOX_MODE:-local}" == "local" ]]; then
@@ -491,7 +497,12 @@ if [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" == "elasticsearch-remote" ]]; th
   ln -sf "$NGINX_KIBANA_DASHBOARDS_REWRITE_CONF" "$NGINX_RUNTIME_DASHBOARDS_REWRITE_LINK"
 else
   ln -sf "$NGINX_DASHBOARDS_IDARK2DASH_REWRITE_CONF" "$NGINX_RUNTIME_IDARK2DASH_REWRITE_LINK"
-  ln -sf "$NGINX_DASHBOARDS_DASHBOARDS_REWRITE_CONF" "$NGINX_RUNTIME_DASHBOARDS_REWRITE_LINK"
+  if [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" == "opensearch-remote" ]] && \
+     { [[ -z ${NGINX_AUTH_MODE:-} ]] || [[ "${NGINX_AUTH_MODE}" == "basic" ]] || [[ "${NGINX_AUTH_MODE}" == "true" ]]; }; then
+    ln -sf "$NGINX_DASHBOARDS_REMOTE_BASIC_REWRITE_CONF" "$NGINX_RUNTIME_DASHBOARDS_REWRITE_LINK"
+  else
+    ln -sf "$NGINX_DASHBOARDS_DASHBOARDS_REWRITE_CONF" "$NGINX_RUNTIME_DASHBOARDS_REWRITE_LINK"
+  fi
 fi
 
 # first parse DASHBOARDS_URL and assign the resultant urlsplit named tuple to an associative array

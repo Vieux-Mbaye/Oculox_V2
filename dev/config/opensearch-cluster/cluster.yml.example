@@ -1,0 +1,40 @@
+version: 1
+
+cluster:
+  name: oculox-opensearch
+  image: ghcr.io/idaholab/malcolm/opensearch:26.07.1
+  heap_per_node: 2g
+  restart_policy: unless-stopped
+
+endpoint:
+  ip: 192.0.2.10
+  port: 9200
+  monitoring_port: 8404
+
+storage:
+  primary_shards: 1
+  replicas: 1
+  max_docvalue_fields_search: 200
+  watermarks:
+    low: 75
+    high: 85
+    flood_stage: 90
+
+policies:
+  arkime_sessions:
+    enabled: true
+    optimize_after_days: 30
+    delete_enabled: false
+    delete_after_days: 90
+  arkime_history:
+    enabled: true
+    delete_enabled: false
+    delete_after_days: 91
+  beats:
+    enabled: true
+    optimize_after_days: 30
+    delete_enabled: false
+    delete_after_days: 90
+
+snapshots:
+  enabled: false

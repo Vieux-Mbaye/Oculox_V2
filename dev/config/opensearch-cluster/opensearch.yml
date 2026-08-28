@@ -1,0 +1,42 @@
+cluster.name: oculox-opensearch
+network.host: 0.0.0.0
+bootstrap.memory_lock: true
+
+http:
+  port: 9200
+  compression: false
+
+transport:
+  port: 9300
+  ssl:
+    enforce_hostname_verification: true
+    resolve_hostname: true
+
+plugins:
+  security:
+    ssl:
+      http:
+        enabled: true
+        clientauth_mode: OPTIONAL
+        pemcert_filepath: certs/node.crt
+        pemkey_filepath: certs/node.key
+        pemtrustedcas_filepath: certs/ca.crt
+      transport:
+        enabled: true
+        pemcert_filepath: certs/node.crt
+        pemkey_filepath: certs/node.key
+        pemtrustedcas_filepath: certs/ca.crt
+    nodes_dn:
+      - "CN=opensearch-1,OU=OpenSearch Nodes,O=Oculox,C=SN"
+      - "CN=opensearch-2,OU=OpenSearch Nodes,O=Oculox,C=SN"
+      - "CN=opensearch-3,OU=OpenSearch Nodes,O=Oculox,C=SN"
+    nodes_dn_dynamic_config_enabled: false
+    authcz:
+      admin_dn:
+        - "CN=oculox-opensearch-admin,OU=OpenSearch Administration,O=Oculox,C=SN"
+    roles_mapping_resolution: MAPPING_ONLY
+    audit:
+      type: internal_opensearch
+      config:
+        enable_rest: false
+        enable_transport: false

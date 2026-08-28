@@ -7,13 +7,18 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 
 mkdir -p \
     "$TEST_ROOT/bin" \
+    "$TEST_ROOT/project/config" \
     "$TEST_ROOT/project/dev/compose" \
     "$TEST_ROOT/project/dev/generated" \
+    "$TEST_ROOT/project/dev/scripts" \
     "$TEST_ROOT/project/scripts"
 cp "$PROJECT_SOURCE/oculox" "$TEST_ROOT/project/oculox"
+cp "$PROJECT_SOURCE/dev/scripts/render-remote-opensearch-compose.py" "$TEST_ROOT/project/dev/scripts/"
 chmod +x "$TEST_ROOT/project/oculox"
+chmod +x "$TEST_ROOT/project/dev/scripts/render-remote-opensearch-compose.py"
 touch "$TEST_ROOT/project/docker-compose.yml"
 touch "$TEST_ROOT/project/dev/compose/docker-compose.dev.yml"
+printf 'OPENSEARCH_PRIMARY=opensearch-local\n' > "$TEST_ROOT/project/config/opensearch.env"
 printf 'OCULOX_ROLE=principal\n' > "$TEST_ROOT/project/dev/generated/deployment.env"
 
 cat > "$TEST_ROOT/bin/docker" <<'EOF'

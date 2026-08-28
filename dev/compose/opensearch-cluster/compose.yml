@@ -1,0 +1,226 @@
+name: oculox-opensearch-cluster
+
+x-opensearch-environment: &opensearch-environment
+  cluster.name: ${OPENSEARCH_CLUSTER_NAME:-oculox-opensearch}
+  discovery.seed_hosts: ${OPENSEARCH_DISCOVERY_SEED_HOSTS:-opensearch-1:9300,opensearch-2:9300,opensearch-3:9300}
+  network.host: 0.0.0.0
+  http.port: "9200"
+  transport.port: "9300"
+  node.roles: cluster_manager,data,ingest,remote_cluster_client
+  bootstrap.memory_lock: "true"
+  cluster.routing.allocation.disk.threshold_enabled: "true"
+  OPENSEARCH_SKIP_SELF_SIGNED_KEY_GEN: "true"
+  OPENSEARCH_JAVA_OPTS: >-
+    -server
+    -Xms${OPENSEARCH_HEAP_SIZE:-2g}
+    -Xmx${OPENSEARCH_HEAP_SIZE:-2g}
+    -Xss256k
+    -XX:-HeapDumpOnOutOfMemoryError
+    -Djava.security.egd=file:/dev/./urandom
+    -Dlog4j.formatMsgNoLookups=true
+
+x-opensearch-service: &opensearch-service
+  image: ${OPENSEARCH_IMAGE:-ghcr.io/idaholab/malcolm/opensearch:26.07.1}
+  entrypoint:
+    - /usr/bin/tini
+    - --
+    - /usr/local/bin/oculox-opensearch-entrypoint.sh
+  command:
+    - /usr/share/opensearch/opensearch-docker-entrypoint.sh
+  restart: ${OPENSEARCH_RESTART_POLICY:-unless-stopped}
+  stop_grace_period: 3m
+  stdin_open: false
+  tty: false
+  oom_score_adj: -500
+  cap_add:
+    - IPC_LOCK
+    - SYS_RESOURCE
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+    nofile:
+      soft: 65536
+      hard: 65536
+  expose:
+    - "9200"
+    - "9300"
+  networks:
+    - cluster-transport
+  logging:
+    driver: local
+    options:
+      max-size: 200m
+      max-file: "2"
+      compress: "false"
+  healthcheck:
+    test:
+      - CMD-SHELL
+      - >-
+        status=$$(curl --cacert /usr/share/opensearch/config/certs/ca.crt
+        --silent --output /dev/null --write-out '%{http_code}'
+        "https://$${HOSTNAME}:9200" || true);
+        test "$$status" = "200" -o "$$status" = "401" -o "$$status" = "403"
+    interval: 30s
+    timeout: 15s
+    retries: 3
+    start_period: 180s
+
+services:
+  opensearch-1:
+    <<: *opensearch-service
+    hostname: opensearch-1
+    environment:
+      <<: *opensearch-environment
+      node.name: opensearch-1
+    volumes:
+      - type: volume
+        source: opensearch-data-1
+        target: /usr/share/opensearch/data
+      - type: bind
+        source: ../../config/opensearch-cluster/opensearch.yml
+        target: /usr/share/opensearch/config/opensearch.yml
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/setup-post-start.sh
+        target: /usr/local/bin/setup-post-start.sh
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/setup-internal-users.sh
+        target: /usr/local/bin/setup-internal-users.sh
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/entrypoint-multinode.sh
+        target: /usr/local/bin/oculox-opensearch-entrypoint.sh
+        read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/pki/nodes/opensearch-1
+        target: /usr/share/opensearch/config/certs
+        read_only: true
+
+  opensearch-2:
+    <<: *opensearch-service
+    hostname: opensearch-2
+    environment:
+      <<: *opensearch-environment
+      node.name: opensearch-2
+    volumes:
+      - type: volume
+        source: opensearch-data-2
+        target: /usr/share/opensearch/data
+      - type: bind
+        source: ../../config/opensearch-cluster/opensearch.yml
+        target: /usr/share/opensearch/config/opensearch.yml
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/setup-post-start.sh
+        target: /usr/local/bin/setup-post-start.sh
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/setup-internal-users.sh
+        target: /usr/local/bin/setup-internal-users.sh
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/entrypoint-multinode.sh
+        target: /usr/local/bin/oculox-opensearch-entrypoint.sh
+        read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/pki/nodes/opensearch-2
+        target: /usr/share/opensearch/config/certs
+        read_only: true
+
+  opensearch-3:
+    <<: *opensearch-service
+    hostname: opensearch-3
+    environment:
+      <<: *opensearch-environment
+      node.name: opensearch-3
+    volumes:
+      - type: volume
+        source: opensearch-data-3
+        target: /usr/share/opensearch/data
+      - type: bind
+        source: ../../config/opensearch-cluster/opensearch.yml
+        target: /usr/share/opensearch/config/opensearch.yml
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/setup-post-start.sh
+        target: /usr/local/bin/setup-post-start.sh
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/setup-internal-users.sh
+        target: /usr/local/bin/setup-internal-users.sh
+        read_only: true
+      - type: bind
+        source: ../../config/opensearch-cluster/entrypoint-multinode.sh
+        target: /usr/local/bin/oculox-opensearch-entrypoint.sh
+        read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/pki/nodes/opensearch-3
+        target: /usr/share/opensearch/config/certs
+        read_only: true
+
+  opensearch-endpoint:
+    image: ${OPENSEARCH_PROXY_IMAGE:-haproxy:3.2.21-alpine}
+    hostname: opensearch-endpoint
+    user: "${OPENSEARCH_PROXY_UID:-1000}:${OPENSEARCH_PROXY_GID:-1000}"
+    restart: ${OPENSEARCH_RESTART_POLICY:-unless-stopped}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - opensearch-1
+      - opensearch-2
+      - opensearch-3
+    ports:
+      - "${OPENSEARCH_ENDPOINT_BIND_IP:?OPENSEARCH_ENDPOINT_BIND_IP is required}:${OPENSEARCH_ENDPOINT_PORT:-9200}:9200"
+      - "${OPENSEARCH_ENDPOINT_BIND_IP:?OPENSEARCH_ENDPOINT_BIND_IP is required}:${OPENSEARCH_MONITORING_PORT:-8404}:8404"
+    expose:
+      - "8404"
+    networks:
+      cluster-transport: {}
+      endpoint-ingress: {}
+    volumes:
+      - type: bind
+        source: ../../generated/opensearch-cluster/endpoint-proxy/haproxy.cfg
+        target: /usr/local/etc/haproxy/haproxy.cfg
+        read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/endpoint-proxy/endpoint.pem
+        target: /usr/local/etc/haproxy/certs/endpoint.pem
+        read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/endpoint-proxy/backend-ca.crt
+        target: /usr/local/etc/haproxy/certs/backend-ca.crt
+        read_only: true
+    logging:
+      driver: local
+      options:
+        max-size: 50m
+        max-file: "3"
+        compress: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8404/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  cluster-transport:
+    name: oculox-opensearch-transport
+    driver: bridge
+    internal: true
+  endpoint-ingress:
+    name: oculox-opensearch-endpoint-ingress
+    driver: bridge
+
+volumes:
+  opensearch-data-1:
+    name: opensearch-data-1
+  opensearch-data-2:
+    name: opensearch-data-2
+  opensearch-data-3:
+    name: opensearch-data-3

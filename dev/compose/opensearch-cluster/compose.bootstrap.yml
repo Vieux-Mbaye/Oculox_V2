@@ -1,0 +1,15 @@
+x-bootstrap-environment: &bootstrap-environment
+  cluster.initial_cluster_manager_nodes: ${OPENSEARCH_INITIAL_CLUSTER_MANAGER_NODES:-opensearch-1,opensearch-2,opensearch-3}
+
+services:
+  opensearch-1:
+    environment:
+      <<: *bootstrap-environment
+
+  opensearch-2:
+    environment:
+      <<: *bootstrap-environment
+
+  opensearch-3:
+    environment:
+      <<: *bootstrap-environment

@@ -23,6 +23,9 @@ services:
 
   dashboards-helper:
     restart: unless-stopped
+    environment:
+      SSL_CERT_FILE: /var/local/ca-trust/oculox-opensearch-ca.crt
+      REQUESTS_CA_BUNDLE: /var/local/ca-trust/oculox-opensearch-ca.crt
 
   filebeat:
     restart: unless-stopped
@@ -97,6 +100,10 @@ services:
     volumes:
       - ./dev/branding:/opt/oculox-branding:ro
       - ./nginx/landingpage:/opt/oculox-landingpage:ro
+      - ./nginx/scripts/docker_entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro
+      - ./nginx/nginx_dashboards_rewrite_dashboards.conf:/etc/nginx/nginx_dashboards_rewrite_dashboards.conf:ro
+      - ./nginx/nginx_dashboards_rewrite_remote_basic.conf:/etc/nginx/nginx_dashboards_rewrite_remote_basic.conf:ro
+      - ./nginx/nginx_dashboards_remote_server.conf:/etc/nginx/conf.d/02_oculox_dashboards_remote.conf:ro
       - ./nginx/nginx_htadmin_global_replacements.conf:/etc/nginx/nginx_htadmin_global_replacements.conf:ro
       - ./nginx/nginx_netbox_location.conf:/etc/nginx/nginx_netbox_location.conf:ro
       - ./nginx/nginx_image_aliases.conf:/etc/nginx/nginx_image_aliases.conf:ro
@@ -109,6 +116,11 @@ services:
 
   pcap-monitor:
     restart: unless-stopped
+    environment:
+      # Python/OpenSSL does not automatically scan the mounted ca-trust
+      # directory. Point both standard clients at the remote cluster CA.
+      SSL_CERT_FILE: /var/local/ca-trust/oculox-opensearch-ca.crt
+      REQUESTS_CA_BUNDLE: /var/local/ca-trust/oculox-opensearch-ca.crt
 
   postgres:
     restart: unless-stopped

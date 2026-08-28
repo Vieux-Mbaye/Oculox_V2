@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+COMPOSE_FILE="$PROJECT_DIR/dev/compose/opensearch-cluster/compose.yml"
+BOOTSTRAP_FILE="$PROJECT_DIR/dev/compose/opensearch-cluster/compose.bootstrap.yml"
+GENERATED_DIR="$PROJECT_DIR/dev/generated/opensearch-cluster"
+ENV_FILE="$GENERATED_DIR/cluster.env"
+CONFIG_FILE="$GENERATED_DIR/cluster.yml"
+PKI_DIR="$GENERATED_DIR/pki"
+SECURITY_DIR="$GENERATED_DIR/security"
+STATE_DIR="$GENERATED_DIR/state"
+ACCOUNTS_ENV="$SECURITY_DIR/accounts.env"
+CA_FILE="$PKI_DIR/client-trust/oculox-opensearch-ca.crt"
+OPERATOR="${SUDO_USER:-$(id -un)}"
+ORIGINAL_ARGS=("$@")
+
+usage() {
+  cat <<'EOF'
+Gestion du cluster OpenSearch Oculox
+
+  ./oculox install cluster --endpoint-ip <adresse-IP> [--heap 2g]
+  ./oculox install cluster --config <cluster.yml> [--endpoint-ip <adresse-IP>]
+  ./oculox cluster start
+  ./oculox cluster stop
+  ./oculox cluster restart
+  ./oculox cluster status
+  ./oculox cluster logs [service]
+  ./oculox cluster validate
+  ./oculox cluster config
+  ./oculox cluster apply --config <cluster.yml>
+  ./oculox cluster client-bundle core <sortie>
+  ./oculox cluster client-bundle hedgehog <sortie>
+
+La commande install est réexécutable après une interruption. Elle ne supprime
+jamais les volumes de données et ne remplace jamais une PKI existante.
+EOF
+}
+
+compose() {
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+compose_bootstrap() {
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" -f "$BOOTSTRAP_FILE" "$@"
+}
+
+require_runtime_state() {
+  [[ -s "$ENV_FILE" ]] || {
+    printf 'Cluster non installé. Exécutez ./oculox install cluster --endpoint-ip <IP>.\n' >&2
+    exit 1
+  }
+}
+
+ensure_docker_access() {
+  if docker info >/dev/null 2>&1; then
+    return
+  fi
+  if sudo docker info >/dev/null 2>&1; then
+    exec sudo -u "$OPERATOR" -g docker -- "$PROJECT_DIR/oculox" cluster "${ORIGINAL_ARGS[@]}"
+  fi
+  printf 'Docker est installé mais son service ne répond pas. Vérifiez systemctl status docker.\n' >&2
+  exit 1
+}
+
+render_config() {
+  local output_env="$1" output_config="$2" config_path="$3" endpoint_ip="$4" heap="$5"
+  local args=(
+    --output-env "$output_env"
+    --output-config "$output_config"
+    --proxy-uid "$(id -u "$OPERATOR")"
+    --proxy-gid "$(id -g "$OPERATOR")"
+  )
+  [[ -z "$config_path" ]] || args+=(--config "$config_path")
+  [[ -z "$endpoint_ip" ]] || args+=(--endpoint-ip "$endpoint_ip")
+  [[ -z "$heap" ]] || args+=(--heap "$heap")
+  "$SCRIPT_DIR/render-cluster-config.py" "${args[@]}"
+}
+
+env_value() {
+  sed -n "s/^$1=//p" "$ENV_FILE"
+}
+
+wait_for_nodes() {
+  local attempt healthy node
+  for attempt in $(seq 1 120); do
+    healthy=0
+    for node in opensearch-1 opensearch-2 opensearch-3; do
+      if [[ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "oculox-opensearch-cluster-${node}-1" 2>/dev/null || true)" == healthy ]]; then
+        healthy=$((healthy + 1))
+      fi
+    done
+    if [[ "$healthy" == 3 ]]; then
+      return
+    fi
+    sleep 2
+  done
+  printf 'Les trois nœuds OpenSearch ne sont pas opérationnels.\n' >&2
+  compose ps >&2
+  exit 1
+}
+
+wait_for_endpoint() {
+  local endpoint password
+  endpoint="$(env_value OPENSEARCH_CLUSTER_ENDPOINT)"
+  password="$(sed -n 's/^OCULOX_PLATFORM_ADMIN_PASSWORD=//p' "$ACCOUNTS_ENV")"
+  for _ in $(seq 1 150); do
+    if curl --silent --fail --max-time 5 --cacert "$CA_FILE" \
+      --user "oculox_platform_admin:$password" \
+      "$endpoint/_cluster/health?wait_for_status=yellow&timeout=3s" >/dev/null 2>&1; then
+      return
+    fi
+    sleep 2
+  done
+  printf 'L’endpoint OpenSearch n’est pas devenu disponible.\n' >&2
+  exit 1
+}
+
+wait_for_cluster_green() {
+  local endpoint password response
+  endpoint="$(env_value OPENSEARCH_CLUSTER_ENDPOINT)"
+  password="$(sed -n 's/^OCULOX_PLATFORM_ADMIN_PASSWORD=//p' "$ACCOUNTS_ENV")"
+  for _ in $(seq 1 180); do
+    response="$(curl --silent --fail --max-time 8 --cacert "$CA_FILE" \
+      --user "oculox_platform_admin:$password" \
+      "$endpoint/_cluster/health" 2>/dev/null || true)"
+    if python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["status"] == "green"; assert d["number_of_nodes"] == 3; assert d["unassigned_shards"] == 0' <<<"$response" 2>/dev/null; then
+      return
+    fi
+    sleep 2
+  done
+  printf 'Le cluster n’est pas revenu à green avec trois nœuds.\n' >&2
+  exit 1
+}
+
+check_host_capacity() {
+  local memory_kib cpu_count disk_kib
+  memory_kib="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
+  cpu_count="$(getconf _NPROCESSORS_ONLN)"
+  disk_kib="$(df -Pk "$PROJECT_DIR" | awk 'NR == 2 {print $4}')"
+  ((memory_kib >= 12582912)) || { printf 'Au moins 12 Gio de RAM sont requis pour les trois nœuds.\n' >&2; exit 1; }
+  ((cpu_count >= 4)) || { printf 'Au moins 4 CPU sont requis pour le cluster.\n' >&2; exit 1; }
+  ((disk_kib >= 104857600)) || { printf 'Au moins 100 Gio libres sont requis avant installation.\n' >&2; exit 1; }
+}
+
+check_endpoint_ip() {
+  local endpoint_ip="$1" octet
+  IFS=. read -r -a octets <<<"$endpoint_ip"
+  for octet in "${octets[@]}"; do
+    ((10#$octet <= 255)) || { printf 'Adresse IPv4 invalide : %s\n' "$endpoint_ip" >&2; exit 2; }
+  done
+  ip -o -4 address show | awk '{print $4}' | cut -d/ -f1 | grep -Fxq "$endpoint_ip" || {
+    printf 'L’adresse %s n’est attribuée à aucune interface locale.\n' "$endpoint_ip" >&2
+    exit 1
+  }
+  if ss -H -lnt "sport = :9200" | grep -q . && [[ ! -s "$ENV_FILE" ]]; then
+    printf 'Le port TCP 9200 est déjà utilisé sur cet hôte.\n' >&2
+    exit 1
+  fi
+}
+
+create_default_bundles() {
+  local endpoint output role
+  endpoint="$(env_value OPENSEARCH_CLUSTER_ENDPOINT)"
+  for role in core hedgehog; do
+    output="$GENERATED_DIR/client-bundles/$role"
+    if [[ ! -e "$output" ]]; then
+      "$SCRIPT_DIR/create-client-bundle.py" --role "$role" --endpoint "$endpoint" --output "$output"
+    fi
+  done
+}
+
+apply_cluster_config() {
+  local config_path="" candidate_dir candidate_env candidate_config current_ip requested_ip
+  shift
+  while (($#)); do
+    case "$1" in
+      --config) shift; config_path="${1:-}" ;;
+      *) printf 'Option inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
+    esac
+    shift
+  done
+  [[ -n "$config_path" && -f "$config_path" ]] || {
+    printf '%s\n' './oculox cluster apply exige --config <cluster.yml>.' >&2
+    exit 2
+  }
+  require_runtime_state
+  ensure_docker_access
+  candidate_dir="$(mktemp -d)"
+  candidate_env="$candidate_dir/cluster.env"
+  candidate_config="$candidate_dir/cluster.yml"
+  render_config "$candidate_env" "$candidate_config" "$config_path" "" ""
+  current_ip="$(env_value OPENSEARCH_ENDPOINT_BIND_IP)"
+  requested_ip="$(sed -n 's/^OPENSEARCH_ENDPOINT_BIND_IP=//p' "$candidate_env")"
+  [[ "$current_ip" == "$requested_ip" ]] || {
+    printf 'Le changement d’endpoint %s -> %s exige une rotation PKI explicite.\n' "$current_ip" "$requested_ip" >&2
+    exit 1
+  }
+  [[ "$(env_value OPENSEARCH_CLUSTER_NAME)" == "$(sed -n 's/^OPENSEARCH_CLUSTER_NAME=//p' "$candidate_env")" ]] || {
+    printf '%s\n' 'Le nom d’un cluster existant ne peut pas être modifié par apply.' >&2
+    exit 1
+  }
+  install -m 0600 "$candidate_env" "$ENV_FILE"
+  install -m 0600 "$candidate_config" "$CONFIG_FILE"
+  "$SCRIPT_DIR/render-endpoint-proxy-config.sh"
+  compose config --quiet
+  compose pull
+  compose up -d
+  wait_for_endpoint
+  wait_for_cluster_green
+  "$SCRIPT_DIR/apply-storage-policy.py" --env-file "$ENV_FILE"
+  create_default_bundles
+  compose ps
+  rm -rf -- "$candidate_dir"
+  printf '%s\n' 'Configuration du cluster appliquée.'
+}
+
+install_cluster() {
+  local endpoint_ip="" heap="" config_path="" check_only=false
+  local candidate_dir candidate_env candidate_config configured_ip
+  shift
+  while (($#)); do
+    case "$1" in
+      --endpoint-ip) shift; endpoint_ip="${1:-}" ;;
+      --heap) shift; heap="${1:-}" ;;
+      --config) shift; config_path="${1:-}" ;;
+      --check) check_only=true ;;
+      *) printf 'Option inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
+    esac
+    shift
+  done
+  [[ -z "$config_path" || -f "$config_path" ]] || {
+    printf 'Fichier de configuration absent : %s\n' "$config_path" >&2
+    exit 2
+  }
+  [[ -z "$heap" || "$heap" =~ ^[1-9][0-9]*[gGmM]$ ]] || {
+    printf '%s\n' '--heap doit utiliser un format tel que 2g ou 2048m.' >&2
+    exit 2
+  }
+
+  check_host_capacity
+  if [[ "$check_only" == false ]]; then
+    sudo "$SCRIPT_DIR/prepare-host.py" --operator "$OPERATOR"
+  elif ! python3 -c 'import yaml' >/dev/null 2>&1; then
+    printf '%s\n' 'PyYAML est requis pour --check. Installez python3-yaml ou lancez l’installation complète.' >&2
+    exit 1
+  fi
+  ensure_docker_access
+
+  candidate_dir="$(mktemp -d)"
+  candidate_env="$candidate_dir/cluster.env"
+  candidate_config="$candidate_dir/cluster.yml"
+  render_config "$candidate_env" "$candidate_config" "$config_path" "$endpoint_ip" "$heap"
+  configured_ip="$(sed -n 's/^OPENSEARCH_ENDPOINT_BIND_IP=//p' "$candidate_env")"
+  check_endpoint_ip "$configured_ip"
+
+  if [[ -s "$ENV_FILE" ]]; then
+    [[ "$(env_value OPENSEARCH_ENDPOINT_BIND_IP)" == "$configured_ip" ]] || {
+      printf 'L’installation existante utilise l’adresse %s. Une rotation PKI est requise pour changer d’adresse.\n' "$(env_value OPENSEARCH_ENDPOINT_BIND_IP)" >&2
+      exit 1
+    }
+  fi
+
+  if [[ "$check_only" == true ]]; then
+    docker compose --env-file "$candidate_env" -f "$COMPOSE_FILE" config --quiet
+    "$SCRIPT_DIR/render-cluster-config.py" --config "$candidate_config" --print
+    rm -rf -- "$candidate_dir"
+    printf '%s\n' 'CLUSTER_CONFIGURATION_CHECK=PASS'
+    return
+  fi
+
+  install -d -m 0700 "$GENERATED_DIR"
+  install -m 0600 "$candidate_env" "$ENV_FILE"
+  install -m 0600 "$candidate_config" "$CONFIG_FILE"
+
+  [[ -d "$PKI_DIR" ]] || "$SCRIPT_DIR/generate-pki.sh" --endpoint-ip "$configured_ip"
+  if [[ -s "$PKI_DIR/manifest.txt" ]] && ! grep -Fxq "endpoint_ip=$configured_ip" "$PKI_DIR/manifest.txt"; then
+    printf 'La PKI existante appartient à une autre adresse endpoint. Rotation explicite requise.\n' >&2
+    exit 1
+  fi
+  [[ -d "$SECURITY_DIR" ]] || "$SCRIPT_DIR/generate-security-config.sh"
+  "$SCRIPT_DIR/render-endpoint-proxy-config.sh"
+  compose config --quiet
+  compose pull
+
+  if [[ ! -s "$STATE_DIR/security-initialized" ]]; then
+    compose_bootstrap up -d opensearch-1 opensearch-2 opensearch-3
+    wait_for_nodes
+    "$SCRIPT_DIR/initialize-security.sh" --admin-dir "$PKI_DIR/admin"
+    compose up -d --no-deps opensearch-endpoint
+    wait_for_endpoint
+    for node in opensearch-1 opensearch-2 opensearch-3; do
+      compose up -d --no-deps --force-recreate "$node"
+      wait_for_endpoint
+    done
+  fi
+
+  compose up -d
+  wait_for_endpoint
+  wait_for_cluster_green
+  "$SCRIPT_DIR/apply-storage-policy.py" --env-file "$ENV_FILE"
+  create_default_bundles
+  compose ps
+  rm -rf -- "$candidate_dir"
+  printf 'Cluster installé. Bundles clients : %s/client-bundles/{core,hedgehog}\n' "$GENERATED_DIR"
+}
+
+COMMAND="${1:-}"
+case "$COMMAND" in
+  install)
+    install_cluster "$@"
+    ;;
+  start)
+    require_runtime_state; ensure_docker_access; compose up -d; wait_for_endpoint; wait_for_cluster_green; compose ps
+    ;;
+  stop)
+    require_runtime_state; ensure_docker_access; compose down
+    ;;
+  restart)
+    require_runtime_state; ensure_docker_access; compose up -d --force-recreate; wait_for_endpoint; wait_for_cluster_green; compose ps
+    ;;
+  status)
+    require_runtime_state; ensure_docker_access; compose ps
+    ;;
+  logs)
+    require_runtime_state; ensure_docker_access; shift; compose logs --tail 200 "$@"
+    ;;
+  validate)
+    require_runtime_state; ensure_docker_access
+    compose config --quiet
+    OPENSEARCH_CLUSTER_ENV_FILE="$ENV_FILE" python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_compose_structure.py"
+    OPENSEARCH_CLUSTER_ENV_FILE="$ENV_FILE" python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_discovery_config.py"
+    OPENSEARCH_CLUSTER_ENV_FILE="$ENV_FILE" python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_pki.py"
+    python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_security_config.py"
+    OPENSEARCH_CLUSTER_ENV_FILE="$ENV_FILE" python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_endpoint_proxy.py"
+    ;;
+  config)
+    require_runtime_state
+    [[ -s "$CONFIG_FILE" ]] || { printf 'Configuration normalisée absente : %s\n' "$CONFIG_FILE" >&2; exit 1; }
+    cat "$CONFIG_FILE"
+    ;;
+  apply)
+    apply_cluster_config "$@"
+    ;;
+  client-bundle)
+    require_runtime_state
+    role="${2:-}"; output="${3:-}"
+    [[ "$role" == core || "$role" == hedgehog ]] || { usage; exit 2; }
+    [[ -n "$output" ]] || { usage; exit 2; }
+    "$SCRIPT_DIR/create-client-bundle.py" --role "$role" \
+      --endpoint "$(env_value OPENSEARCH_CLUSTER_ENDPOINT)" --output "$output"
+    ;;
+  *) usage; exit 2 ;;
+esac

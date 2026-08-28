@@ -5,6 +5,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 FAILURES=0
+CREATED_ENV_FILES=()
+
+cleanup() {
+    rm -f "${CREATED_ENV_FILES[@]}"
+}
+trap cleanup EXIT
 
 cd "$PROJECT_DIR"
 
@@ -83,19 +89,44 @@ from pathlib import Path
 
 import yaml
 
+
+class ComposeLoader(yaml.SafeLoader):
+    pass
+
+
+def compose_value(loader, node):
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node)
+    if isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node)
+    return loader.construct_scalar(node)
+
+
+for tag in ("!reset", "!override"):
+    ComposeLoader.add_constructor(tag, compose_value)
+
+
 excluded = {"generated", "results", "data"}
 for path in Path("dev").rglob("*"):
     if path.suffix not in {".yml", ".yaml"}:
         continue
     if excluded.intersection(path.parts):
         continue
-    yaml.safe_load(path.read_text(encoding="utf-8"))
+    yaml.load(path.read_text(encoding="utf-8"), Loader=ComposeLoader)
 PY
 then
     pass 'syntaxe YAML valide'
 else
     fail 'syntaxe YAML invalide'
 fi
+
+for example in config/*.env.example; do
+    destination="${example%.example}"
+    if [[ ! -e "$destination" ]]; then
+        install -m 0600 "$example" "$destination"
+        CREATED_ENV_FILES+=("$destination")
+    fi
+done
 
 if ./dev/scripts/validate-compose.sh; then
     pass 'configurations Compose Principal et Hedgehog valides'
@@ -108,6 +139,9 @@ if ./dev/tests/test-branding.sh; then
 else
     fail 'identité visuelle Oculox invalide'
 fi
+
+cleanup
+CREATED_ENV_FILES=()
 
 printf '\n=== Protection Des Données Locales ===\n'
 ignore_failures=0

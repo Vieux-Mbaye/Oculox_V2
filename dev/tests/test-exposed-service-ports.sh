@@ -3,7 +3,19 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 BASE_COMPOSE="$(mktemp "$PROJECT_DIR/.compose-exposed-ports.XXXXXX.yml")"
-trap 'rm -f "$BASE_COMPOSE"' EXIT
+CREATED_ENV_FILES=()
+cleanup() {
+    rm -f "$BASE_COMPOSE" "${CREATED_ENV_FILES[@]}"
+}
+trap cleanup EXIT
+
+for example in "$PROJECT_DIR"/config/*.env.example; do
+    destination="${example%.example}"
+    if [[ ! -e "$destination" ]]; then
+        cp "$example" "$destination"
+        CREATED_ENV_FILES+=("$destination")
+    fi
+done
 
 cp "$PROJECT_DIR/docker-compose.yml" "$BASE_COMPOSE"
 
