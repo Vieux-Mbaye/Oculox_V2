@@ -230,8 +230,10 @@ apply_cluster_config() {
   compose pull
   compose up -d
   wait_for_endpoint
-  wait_for_cluster_green
+  # Reconcile templates and existing index settings before requiring green.
+  # This is what releases replicas stranded by a legacy per-index shard cap.
   "$SCRIPT_DIR/apply-storage-policy.py" --env-file "$ENV_FILE"
+  wait_for_cluster_green
   create_default_bundles
   compose ps
   rm -rf -- "$candidate_dir"

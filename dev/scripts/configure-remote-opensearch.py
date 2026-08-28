@@ -25,6 +25,12 @@ ROLE_CLIENTS = {
     "hedgehog": ("arkime", "api"),
 }
 BUNDLE_ROLE = {"principal": "core", "hedgehog": "hedgehog"}
+STORAGE_KEYS = (
+    "OPENSEARCH_PRIMARY_SHARDS",
+    "OPENSEARCH_REPLICAS",
+    "OPENSEARCH_SHARDS_PER_NODE",
+    "OPENSEARCH_MAX_DOCVALUE_FIELDS_SEARCH",
+)
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -79,6 +85,25 @@ def validate_curlrc(path: Path) -> None:
         raise SystemExit(f"Verification TLS desactivee dans {path.name}")
 
 
+def validate_storage_contract(values: dict[str, str]) -> dict[str, str]:
+    missing = [key for key in STORAGE_KEYS if not values.get(key)]
+    if missing:
+        raise SystemExit(
+            "Bundle incompatible : parametres de stockage absents : " + ", ".join(missing)
+        )
+    for key in STORAGE_KEYS:
+        try:
+            value = int(values[key])
+        except ValueError as error:
+            raise SystemExit(f"Parametre de stockage invalide {key}={values[key]!r}") from error
+        if key == "OPENSEARCH_SHARDS_PER_NODE":
+            if value != -1:
+                raise SystemExit("OPENSEARCH_SHARDS_PER_NODE doit etre -1")
+        elif value < 1:
+            raise SystemExit(f"Parametre de stockage invalide {key}={values[key]!r}")
+    return {key: values[key] for key in STORAGE_KEYS}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bundle", type=Path, required=True)
@@ -95,6 +120,7 @@ def main() -> None:
     parsed = urlparse(endpoint)
     if parsed.scheme != "https" or not parsed.hostname:
         raise SystemExit("Endpoint HTTPS invalide dans bundle.env")
+    storage = validate_storage_contract(bundle_env)
 
     deployment = read_env(PROJECT_DIR / "dev/generated/deployment.env")
     role = args.role or deployment.get("OCULOX_ROLE", "")
@@ -143,18 +169,33 @@ def main() -> None:
     shutil.copyfile(CLIENT_DIR / "api.curlrc", PRIMARY_CURLRC)
     os.chmod(PRIMARY_CURLRC, 0o600)
 
-    update_env(
-        PROJECT_DIR / "config/opensearch.env",
-        {
-            "OPENSEARCH_PRIMARY": "opensearch-remote",
-            "OPENSEARCH_URL": endpoint.rstrip("/"),
-            "OPENSEARCH_SSL_CERTIFICATE_VERIFICATION": "true",
-        },
-    )
+    settings = {
+        "OPENSEARCH_PRIMARY": "opensearch-remote",
+        "OPENSEARCH_URL": endpoint.rstrip("/"),
+        "OPENSEARCH_SSL_CERTIFICATE_VERIFICATION": "true",
+    }
+    if role == "principal":
+        # Malcolm creates its templates after the remote bundle is imported.
+        # Carry the cluster storage contract into that creation step so a fresh
+        # cluster cannot inherit the historical three-shard/two-shard-cap defaults.
+        settings.update(
+            {
+                "ARKIME_INIT_SHARDS": storage["OPENSEARCH_PRIMARY_SHARDS"],
+                "ARKIME_INIT_REPLICAS": storage["OPENSEARCH_REPLICAS"],
+                "ARKIME_INIT_SHARDS_PER_NODE": storage["OPENSEARCH_SHARDS_PER_NODE"],
+                "MALCOLM_INDEX_MAX_DOCVALUE_FIELDS_SEARCH": storage[
+                    "OPENSEARCH_MAX_DOCVALUE_FIELDS_SEARCH"
+                ],
+            }
+        )
+    update_env(PROJECT_DIR / "config/opensearch.env", settings)
 
     marker = CLIENT_DIR / "deployment.env"
     marker.write_text(
-        f"OCULOX_ROLE={role}\nOPENSEARCH_CLUSTER_ENDPOINT={endpoint.rstrip('/')}\n",
+        f"OCULOX_ROLE={role}\n"
+        f"OPENSEARCH_CLUSTER_ENDPOINT={endpoint.rstrip('/')}\n"
+        f"OPENSEARCH_PRIMARY_SHARDS={storage['OPENSEARCH_PRIMARY_SHARDS']}\n"
+        f"OPENSEARCH_REPLICAS={storage['OPENSEARCH_REPLICAS']}\n",
         encoding="utf-8",
     )
     os.chmod(marker, 0o600)
@@ -162,6 +203,12 @@ def main() -> None:
     print("Configuration OpenSearch distante importée.")
     print(f"Role : {role}; endpoint : {endpoint.rstrip('/')}")
     print("Verification TLS : activee; CA : nginx/ca-trust/oculox-opensearch-ca.crt")
+    if role == "principal":
+        print(
+            "Templates Malcolm : "
+            f"shards={storage['OPENSEARCH_PRIMARY_SHARDS']}, "
+            f"replicas={storage['OPENSEARCH_REPLICAS']}, cap_par_noeud=desactive"
+        )
     print(f"Identites de service installees : {len(ROLE_CLIENTS[role])}")
 
 

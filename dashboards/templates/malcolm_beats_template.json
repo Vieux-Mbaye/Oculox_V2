@@ -48,6 +48,9 @@
         "event.result": {
           "type": "keyword"
         },
+        "network.protocol_version": {
+          "type": "keyword"
+        },
         "os.family": {
           "type": "keyword"
         },

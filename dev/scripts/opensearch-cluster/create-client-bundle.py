@@ -16,6 +16,13 @@ from urllib.parse import urlparse
 PROJECT_DIR = Path(__file__).resolve().parents[3]
 DEFAULT_CA = PROJECT_DIR / "dev/generated/opensearch-cluster/pki/client-trust/oculox-opensearch-ca.crt"
 DEFAULT_ACCOUNTS = PROJECT_DIR / "dev/generated/opensearch-cluster/security/accounts.env"
+DEFAULT_CLUSTER_ENV = PROJECT_DIR / "dev/generated/opensearch-cluster/cluster.env"
+
+STORAGE_KEYS = (
+    "OPENSEARCH_PRIMARY_SHARDS",
+    "OPENSEARCH_REPLICAS",
+    "OPENSEARCH_MAX_DOCVALUE_FIELDS_SEARCH",
+)
 
 ACCOUNT_MAP = {
     "core": {
@@ -64,21 +71,43 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def storage_contract(path: Path) -> dict[str, str]:
+    values = read_env(path)
+    missing = [key for key in STORAGE_KEYS if not values.get(key)]
+    if missing:
+        raise SystemExit(
+            f"Parametres de stockage absents dans {path}: {', '.join(missing)}"
+        )
+    for key in STORAGE_KEYS:
+        try:
+            if int(values[key]) < 1:
+                raise ValueError
+        except ValueError as error:
+            raise SystemExit(f"Parametre de stockage invalide {key}={values[key]!r}") from error
+    return {key: values[key] for key in STORAGE_KEYS}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--role", choices=tuple(ACCOUNT_MAP), required=True)
     parser.add_argument("--endpoint", required=True)
     parser.add_argument("--ca", type=Path, default=DEFAULT_CA)
     parser.add_argument("--accounts", type=Path, default=DEFAULT_ACCOUNTS)
+    parser.add_argument("--cluster-env", type=Path, default=DEFAULT_CLUSTER_ENV)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     endpoint = validate_endpoint(args.endpoint)
-    for path, label in ((args.ca, "CA"), (args.accounts, "comptes Security")):
+    for path, label in (
+        (args.ca, "CA"),
+        (args.accounts, "comptes Security"),
+        (args.cluster_env, "configuration du cluster"),
+    ):
         if not path.is_file():
             raise SystemExit(f"Fichier {label} absent : {path}")
 
     accounts = read_env(args.accounts)
+    storage = storage_contract(args.cluster_env)
     missing = [key for _, key in ACCOUNT_MAP[args.role].values() if not accounts.get(key)]
     if missing:
         raise SystemExit(f"Mots de passe absents dans accounts.env : {', '.join(missing)}")
@@ -95,7 +124,11 @@ def main() -> None:
         os.chmod(work / "oculox-opensearch-ca.crt", 0o644)
         (work / "bundle.env").write_text(
             f"OCULOX_OPENSEARCH_CLIENT_ROLE={args.role}\n"
-            f"OPENSEARCH_CLUSTER_ENDPOINT={endpoint}\n",
+            f"OPENSEARCH_CLUSTER_ENDPOINT={endpoint}\n"
+            f"OPENSEARCH_PRIMARY_SHARDS={storage['OPENSEARCH_PRIMARY_SHARDS']}\n"
+            f"OPENSEARCH_REPLICAS={storage['OPENSEARCH_REPLICAS']}\n"
+            "OPENSEARCH_SHARDS_PER_NODE=-1\n"
+            f"OPENSEARCH_MAX_DOCVALUE_FIELDS_SEARCH={storage['OPENSEARCH_MAX_DOCVALUE_FIELDS_SEARCH']}\n",
             encoding="utf-8",
         )
         os.chmod(work / "bundle.env", 0o600)

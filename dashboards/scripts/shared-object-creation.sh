@@ -100,7 +100,12 @@ function DoReplacersInFile() {
       fi
 
       SHARDS_PER_NODE=$(echo "($SHARDS * ($REPLICAS + 1) + $CLUSTER_NODE_COUNT - 1) / $CLUSTER_NODE_COUNT" | bc)
-      if [[ -n "${ARKIME_INIT_SHARDS_PER_NODE}" ]] && ( [[ "${ARKIME_INIT_SHARDS_PER_NODE}" == "null" ]] || (( ARKIME_INIT_SHARDS_PER_NODE > SHARDS_PER_NODE )) ); then
+      if [[ "${ARKIME_INIT_SHARDS_PER_NODE:-}" == "-1" ]]; then
+        # A dedicated cluster controls placement through replicas and disk
+        # watermarks. Do not retain Malcolm's per-index cap: it can strand
+        # replicas when templates and cluster settings are applied at different times.
+        SHARDS_PER_NODE=-1
+      elif [[ -n "${ARKIME_INIT_SHARDS_PER_NODE}" ]] && ( [[ "${ARKIME_INIT_SHARDS_PER_NODE}" == "null" ]] || (( ARKIME_INIT_SHARDS_PER_NODE > SHARDS_PER_NODE )) ); then
         SHARDS_PER_NODE="${ARKIME_INIT_SHARDS_PER_NODE}"
       fi
 
