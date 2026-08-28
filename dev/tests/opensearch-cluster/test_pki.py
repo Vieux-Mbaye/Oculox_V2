@@ -169,6 +169,7 @@ def main() -> int:
     assert "pemtrustedcas_filepath: certs/ca.crt" in config_text
     assert "clientauth_mode: OPTIONAL" in config_text
     assert "enforce_hostname_verification: true" in config_text
+    assert "resolve_hostname: false" in config_text
 
     compose = compose_config()
     compose_source = COMPOSE_FILE.read_text(encoding="utf-8")

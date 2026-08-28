@@ -10,7 +10,9 @@ transport:
   port: 9300
   ssl:
     enforce_hostname_verification: true
-    resolve_hostname: true
+    # Docker bridge IPs are ephemeral. Verify the stable DNS SAN supplied by
+    # discovery.seed_hosts without reverse-resolving the peer's container IP.
+    resolve_hostname: false
 
 plugins:
   security:
