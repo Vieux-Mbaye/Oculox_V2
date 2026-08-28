@@ -39,6 +39,11 @@ Une installation rapide avec les valeurs par defaut utilise :
 ./oculox install cluster --endpoint-ip <IP_CLUSTER>
 ```
 
+Le profil `lab` autorise trois noeuds avec `1g` de heap chacun et exige au
+minimum 6 Gio de RAM et 25 Gio libres. Le profil `production` exige au moins
+`2g` de heap par noeud, 12 Gio de RAM et 100 Gio libres. Ces seuils sont des
+garde-fous Oculox, pas des limites imposees par OpenSearch.
+
 `opensearch.yml` active TLS sur les couches HTTP et transport, declare les
 trois DN de noeud et le DN du certificat administrateur. Les chemins des
 certificats sont relatifs au repertoire `config`, comme l'exige le plugin

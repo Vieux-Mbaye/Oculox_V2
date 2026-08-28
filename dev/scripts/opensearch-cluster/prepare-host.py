@@ -27,6 +27,7 @@ def run(command: list[str]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--operator", required=True)
+    parser.add_argument("--dependencies-only", action="store_true")
     args = parser.parse_args()
 
     if os.geteuid() != 0:
@@ -45,6 +46,9 @@ def main() -> None:
         ["python3-bcrypt", "python3-yaml"]
     ):
         raise SystemExit("Échec de l'installation des dépendances Python du cluster")
+    if args.dependencies_only:
+        print("Dépendances de configuration du cluster installées.")
+        return
     if not installer.is_docker_installed(runtime_bin="docker"):
         if not installer.install_docker(context, runtime_bin="docker"):
             raise SystemExit("Échec de l'installation de Docker")

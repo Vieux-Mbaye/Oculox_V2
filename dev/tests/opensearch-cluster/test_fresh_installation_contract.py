@@ -47,6 +47,7 @@ def main() -> None:
         env_file = Path(temporary) / "cluster.env"
         env_file.write_text(
             "OPENSEARCH_IMAGE=ghcr.io/idaholab/malcolm/opensearch:26.07.1\n"
+            "OCULOX_CLUSTER_PROFILE=production\n"
             "OPENSEARCH_CLUSTER_NAME=oculox-opensearch\n"
             "OPENSEARCH_DISCOVERY_SEED_HOSTS=opensearch-1:9300,opensearch-2:9300,opensearch-3:9300\n"
             "OPENSEARCH_INITIAL_CLUSTER_MANAGER_NODES=opensearch-1,opensearch-2,opensearch-3\n"

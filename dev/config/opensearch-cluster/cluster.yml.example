@@ -1,6 +1,7 @@
 version: 1
 
 cluster:
+  profile: production
   name: oculox-opensearch
   image: ghcr.io/idaholab/malcolm/opensearch:26.07.1
   heap_per_node: 2g

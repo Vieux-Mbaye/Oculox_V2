@@ -56,6 +56,7 @@ def test_custom_configuration() -> None:
         """
 version: 1
 cluster:
+  profile: production
   heap_per_node: 3g
 endpoint:
   ip: 192.0.2.25
@@ -76,6 +77,7 @@ policies:
     )
     assert result.returncode == 0, result.stderr
     assert config["cluster"]["heap_per_node"] == "3g"
+    assert env["OCULOX_CLUSTER_PROFILE"] == "production"
     assert config["policies"]["arkime_sessions"]["delete_enabled"] is False
     assert env["OPENSEARCH_CLUSTER_ENDPOINT"] == "https://192.0.2.25:9443"
     assert env["OPENSEARCH_MONITORING_PORT"] == "8405"
@@ -107,6 +109,25 @@ def test_unimplemented_snapshots_are_rejected() -> None:
     )
     assert result.returncode != 0
     assert "snapshots are not available yet" in result.stderr
+
+
+def test_lab_profile_accepts_one_gigabyte_heap() -> None:
+    result, _, env = render(
+        "version: 1\ncluster:\n  profile: lab\n  heap_per_node: 1g\n"
+        "endpoint:\n  ip: 192.0.2.25\n"
+    )
+    assert result.returncode == 0, result.stderr
+    assert env["OCULOX_CLUSTER_PROFILE"] == "lab"
+    assert env["OPENSEARCH_HEAP_SIZE"] == "1g"
+
+
+def test_lab_profile_rejects_oversized_heap() -> None:
+    result, _, _ = render(
+        "version: 1\ncluster:\n  profile: lab\n  heap_per_node: 2g\n"
+        "endpoint:\n  ip: 192.0.2.25\n"
+    )
+    assert result.returncode != 0
+    assert "lab profile supports at most 1g" in result.stderr
 
 
 if __name__ == "__main__":

@@ -136,20 +136,27 @@ wait_for_cluster_green() {
 }
 
 check_host_capacity() {
-  local memory_kib cpu_count disk_kib failures=0
+  local profile="$1" memory_kib cpu_count disk_kib min_memory_mib min_disk_gib failures=0
+  if [[ "$profile" == lab ]]; then
+    min_memory_mib=6144
+    min_disk_gib=25
+  else
+    min_memory_mib=12288
+    min_disk_gib=100
+  fi
   memory_kib="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
   cpu_count="$(getconf _NPROCESSORS_ONLN)"
   disk_kib="$(df -Pk "$PROJECT_DIR" | awk 'NR == 2 {print $4}')"
-  if ((memory_kib < 12582912)); then
-    printf 'RAM insuffisante : %d Mio disponibles, 12288 Mio requis.\n' "$((memory_kib / 1024))" >&2
+  if ((memory_kib < min_memory_mib * 1024)); then
+    printf 'RAM insuffisante pour le profil %s : %d Mio disponibles, %d Mio requis.\n' "$profile" "$((memory_kib / 1024))" "$min_memory_mib" >&2
     failures=$((failures + 1))
   fi
   if ((cpu_count < 4)); then
     printf 'CPU insuffisants : %d disponibles, 4 requis.\n' "$cpu_count" >&2
     failures=$((failures + 1))
   fi
-  if ((disk_kib < 104857600)); then
-    printf 'Disque insuffisant : %d Gio libres, 100 Gio requis.\n' "$((disk_kib / 1048576))" >&2
+  if ((disk_kib < min_disk_gib * 1048576)); then
+    printf 'Disque insuffisant pour le profil %s : %d Gio libres, %d Gio requis.\n' "$profile" "$((disk_kib / 1048576))" "$min_disk_gib" >&2
     failures=$((failures + 1))
   fi
   ((failures == 0)) || exit 1
@@ -233,7 +240,7 @@ apply_cluster_config() {
 
 install_cluster() {
   local endpoint_ip="" heap="" config_path="" check_only=false
-  local candidate_dir candidate_env candidate_config configured_ip configured_port monitoring_port
+  local candidate_dir candidate_env candidate_config configured_ip configured_port monitoring_port profile
   shift
   while (($#)); do
     case "$1" in
@@ -254,14 +261,13 @@ install_cluster() {
     exit 2
   }
 
-  check_host_capacity
   if [[ "$check_only" == false ]]; then
-    sudo "$SCRIPT_DIR/prepare-host.py" --operator "$OPERATOR"
+    check_host_capacity lab
+    sudo "$SCRIPT_DIR/prepare-host.py" --operator "$OPERATOR" --dependencies-only
   elif ! python3 -c 'import yaml' >/dev/null 2>&1; then
     printf '%s\n' 'PyYAML est requis pour --check. Installez python3-yaml ou lancez l’installation complète.' >&2
     exit 1
   fi
-  ensure_docker_access
 
   candidate_dir="$(mktemp -d)"
   candidate_env="$candidate_dir/cluster.env"
@@ -270,6 +276,8 @@ install_cluster() {
   configured_ip="$(sed -n 's/^OPENSEARCH_ENDPOINT_BIND_IP=//p' "$candidate_env")"
   configured_port="$(sed -n 's/^OPENSEARCH_ENDPOINT_PORT=//p' "$candidate_env")"
   monitoring_port="$(sed -n 's/^OPENSEARCH_MONITORING_PORT=//p' "$candidate_env")"
+  profile="$(sed -n 's/^OCULOX_CLUSTER_PROFILE=//p' "$candidate_env")"
+  check_host_capacity "$profile"
   check_endpoint_bindings "$configured_ip" "$configured_port" "$monitoring_port"
 
   if [[ -s "$ENV_FILE" ]]; then
@@ -280,12 +288,16 @@ install_cluster() {
   fi
 
   if [[ "$check_only" == true ]]; then
+    ensure_docker_access
     docker compose --env-file "$candidate_env" -f "$COMPOSE_FILE" config --quiet
     "$SCRIPT_DIR/render-cluster-config.py" --config "$candidate_config" --print
     rm -rf -- "$candidate_dir"
     printf '%s\n' 'CLUSTER_CONFIGURATION_CHECK=PASS'
     return
   fi
+
+  sudo "$SCRIPT_DIR/prepare-host.py" --operator "$OPERATOR"
+  ensure_docker_access
 
   install -d -m 0700 "$GENERATED_DIR"
   install -m 0600 "$candidate_env" "$ENV_FILE"

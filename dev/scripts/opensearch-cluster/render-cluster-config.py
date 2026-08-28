@@ -18,6 +18,7 @@ import yaml
 DEFAULT_CONFIG: dict[str, Any] = {
     "version": 1,
     "cluster": {
+        "profile": "production",
         "name": "oculox-opensearch",
         "image": "ghcr.io/idaholab/malcolm/opensearch:26.07.1",
         "heap_per_node": "2g",
@@ -102,12 +103,20 @@ def validate(config: dict[str, Any]) -> None:
         raise ValueError("Only configuration version 1 is supported")
 
     cluster = config["cluster"]
+    if cluster["profile"] not in {"lab", "production"}:
+        raise ValueError("cluster.profile must be lab or production")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", str(cluster["name"])):
         raise ValueError("cluster.name contains unsupported characters")
     if not str(cluster["image"]).strip():
         raise ValueError("cluster.image is required")
     if not re.fullmatch(r"[1-9][0-9]*[gGmM]", str(cluster["heap_per_node"])):
         raise ValueError("cluster.heap_per_node must use a value such as 2g or 2048m")
+    heap = str(cluster["heap_per_node"]).lower()
+    heap_mib = int(heap[:-1]) * (1024 if heap.endswith("g") else 1)
+    if cluster["profile"] == "lab" and heap_mib > 1024:
+        raise ValueError("the lab profile supports at most 1g of heap per node")
+    if cluster["profile"] == "production" and heap_mib < 2048:
+        raise ValueError("the production profile requires at least 2g of heap per node")
     if cluster["restart_policy"] not in {"no", "always", "on-failure", "unless-stopped"}:
         raise ValueError("cluster.restart_policy is invalid")
 
@@ -176,6 +185,7 @@ def render_env(
     storage = config["storage"]
     policies = config["policies"]
     values = {
+        "OCULOX_CLUSTER_PROFILE": cluster["profile"],
         "OPENSEARCH_IMAGE": cluster["image"],
         "OPENSEARCH_CLUSTER_NAME": cluster["name"],
         "OPENSEARCH_DISCOVERY_SEED_HOSTS": "opensearch-1:9300,opensearch-2:9300,opensearch-3:9300",
