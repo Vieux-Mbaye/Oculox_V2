@@ -271,6 +271,21 @@ def kibana_fields_to_opensearch_format(kibana_fields: dict):
     return fields_out
 
 
+def opensearch_fields_to_kibana_format(fields: list[dict]) -> dict[str, dict]:
+    """Convert the normalized field list back to the Data Views API format."""
+    result = {}
+    for field in fields:
+        name = field.get('name')
+        if not name:
+            continue
+        result[name] = {
+            key: value
+            for key, value in field.items()
+            if key != 'name'
+        }
+    return result
+
+
 def get_fields_list(args, session, index_id):
     if args.opensearch_mode == DatabaseMode.ElasticsearchRemote:
         resp = session.get(f"{args.dashboards_url}/{KIBANA_DATA_VIEW_URI}/{index_id}")
@@ -453,6 +468,10 @@ def update_dashboard_index_pattern(args, session, index_id, fields, field_format
         payload = {
             'data_view': {
                 'title': args.index,
+                # The remote Data Views API does not infer and persist fields
+                # from a title update. Persist the refreshed field registry so
+                # saved visualizations can resolve their referenced fields.
+                'fields': opensearch_fields_to_kibana_format(fields),
                 'fieldFormats': field_format_map,
             }
         }
