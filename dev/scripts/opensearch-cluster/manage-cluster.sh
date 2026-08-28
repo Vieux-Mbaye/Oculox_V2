@@ -136,17 +136,27 @@ wait_for_cluster_green() {
 }
 
 check_host_capacity() {
-  local memory_kib cpu_count disk_kib
+  local memory_kib cpu_count disk_kib failures=0
   memory_kib="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
   cpu_count="$(getconf _NPROCESSORS_ONLN)"
   disk_kib="$(df -Pk "$PROJECT_DIR" | awk 'NR == 2 {print $4}')"
-  ((memory_kib >= 12582912)) || { printf 'Au moins 12 Gio de RAM sont requis pour les trois nœuds.\n' >&2; exit 1; }
-  ((cpu_count >= 4)) || { printf 'Au moins 4 CPU sont requis pour le cluster.\n' >&2; exit 1; }
-  ((disk_kib >= 104857600)) || { printf 'Au moins 100 Gio libres sont requis avant installation.\n' >&2; exit 1; }
+  if ((memory_kib < 12582912)); then
+    printf 'RAM insuffisante : %d Mio disponibles, 12288 Mio requis.\n' "$((memory_kib / 1024))" >&2
+    failures=$((failures + 1))
+  fi
+  if ((cpu_count < 4)); then
+    printf 'CPU insuffisants : %d disponibles, 4 requis.\n' "$cpu_count" >&2
+    failures=$((failures + 1))
+  fi
+  if ((disk_kib < 104857600)); then
+    printf 'Disque insuffisant : %d Gio libres, 100 Gio requis.\n' "$((disk_kib / 1048576))" >&2
+    failures=$((failures + 1))
+  fi
+  ((failures == 0)) || exit 1
 }
 
-check_endpoint_ip() {
-  local endpoint_ip="$1" octet
+check_endpoint_bindings() {
+  local endpoint_ip="$1" endpoint_port="$2" monitoring_port="$3" octet port
   IFS=. read -r -a octets <<<"$endpoint_ip"
   for octet in "${octets[@]}"; do
     ((10#$octet <= 255)) || { printf 'Adresse IPv4 invalide : %s\n' "$endpoint_ip" >&2; exit 2; }
@@ -155,9 +165,13 @@ check_endpoint_ip() {
     printf 'L’adresse %s n’est attribuée à aucune interface locale.\n' "$endpoint_ip" >&2
     exit 1
   }
-  if ss -H -lnt "sport = :9200" | grep -q . && [[ ! -s "$ENV_FILE" ]]; then
-    printf 'Le port TCP 9200 est déjà utilisé sur cet hôte.\n' >&2
-    exit 1
+  if [[ ! -s "$ENV_FILE" ]]; then
+    for port in "$endpoint_port" "$monitoring_port"; do
+      if ss -H -lnt "sport = :$port" | grep -q .; then
+        printf 'Le port TCP %s est déjà utilisé sur cet hôte.\n' "$port" >&2
+        exit 1
+      fi
+    done
   fi
 }
 
@@ -173,7 +187,7 @@ create_default_bundles() {
 }
 
 apply_cluster_config() {
-  local config_path="" candidate_dir candidate_env candidate_config current_ip requested_ip
+  local config_path="" candidate_dir candidate_env candidate_config current_endpoint requested_endpoint
   shift
   while (($#)); do
     case "$1" in
@@ -192,10 +206,10 @@ apply_cluster_config() {
   candidate_env="$candidate_dir/cluster.env"
   candidate_config="$candidate_dir/cluster.yml"
   render_config "$candidate_env" "$candidate_config" "$config_path" "" ""
-  current_ip="$(env_value OPENSEARCH_ENDPOINT_BIND_IP)"
-  requested_ip="$(sed -n 's/^OPENSEARCH_ENDPOINT_BIND_IP=//p' "$candidate_env")"
-  [[ "$current_ip" == "$requested_ip" ]] || {
-    printf 'Le changement d’endpoint %s -> %s exige une rotation PKI explicite.\n' "$current_ip" "$requested_ip" >&2
+  current_endpoint="$(env_value OPENSEARCH_CLUSTER_ENDPOINT)"
+  requested_endpoint="$(sed -n 's/^OPENSEARCH_CLUSTER_ENDPOINT=//p' "$candidate_env")"
+  [[ "$current_endpoint" == "$requested_endpoint" ]] || {
+    printf 'Le changement d’endpoint %s -> %s exige une migration explicite.\n' "$current_endpoint" "$requested_endpoint" >&2
     exit 1
   }
   [[ "$(env_value OPENSEARCH_CLUSTER_NAME)" == "$(sed -n 's/^OPENSEARCH_CLUSTER_NAME=//p' "$candidate_env")" ]] || {
@@ -219,7 +233,7 @@ apply_cluster_config() {
 
 install_cluster() {
   local endpoint_ip="" heap="" config_path="" check_only=false
-  local candidate_dir candidate_env candidate_config configured_ip
+  local candidate_dir candidate_env candidate_config configured_ip configured_port monitoring_port
   shift
   while (($#)); do
     case "$1" in
@@ -254,11 +268,13 @@ install_cluster() {
   candidate_config="$candidate_dir/cluster.yml"
   render_config "$candidate_env" "$candidate_config" "$config_path" "$endpoint_ip" "$heap"
   configured_ip="$(sed -n 's/^OPENSEARCH_ENDPOINT_BIND_IP=//p' "$candidate_env")"
-  check_endpoint_ip "$configured_ip"
+  configured_port="$(sed -n 's/^OPENSEARCH_ENDPOINT_PORT=//p' "$candidate_env")"
+  monitoring_port="$(sed -n 's/^OPENSEARCH_MONITORING_PORT=//p' "$candidate_env")"
+  check_endpoint_bindings "$configured_ip" "$configured_port" "$monitoring_port"
 
   if [[ -s "$ENV_FILE" ]]; then
-    [[ "$(env_value OPENSEARCH_ENDPOINT_BIND_IP)" == "$configured_ip" ]] || {
-      printf 'L’installation existante utilise l’adresse %s. Une rotation PKI est requise pour changer d’adresse.\n' "$(env_value OPENSEARCH_ENDPOINT_BIND_IP)" >&2
+    [[ "$(env_value OPENSEARCH_CLUSTER_ENDPOINT)" == "$(sed -n 's/^OPENSEARCH_CLUSTER_ENDPOINT=//p' "$candidate_env")" ]] || {
+      printf 'L’installation existante utilise l’endpoint %s. Une migration explicite est requise pour le modifier.\n' "$(env_value OPENSEARCH_CLUSTER_ENDPOINT)" >&2
       exit 1
     }
   fi
