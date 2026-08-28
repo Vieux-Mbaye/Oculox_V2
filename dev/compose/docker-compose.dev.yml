@@ -26,6 +26,12 @@ services:
     environment:
       SSL_CERT_FILE: /var/local/ca-trust/oculox-opensearch-ca.crt
       REQUESTS_CA_BUNDLE: /var/local/ca-trust/oculox-opensearch-ca.crt
+    volumes:
+      # Keep template creation aligned with the dedicated OpenSearch cluster.
+      # The upstream image owns these paths, so bind mounts make the reviewed
+      # Oculox contract effective without rebuilding the vendor image.
+      - ./dashboards/scripts/shared-object-creation.sh:/usr/local/bin/shared-object-creation.sh:ro
+      - ./dashboards/templates/malcolm_beats_template.json:/opt/templates/malcolm_beats_template.json:ro
 
   filebeat:
     restart: unless-stopped
