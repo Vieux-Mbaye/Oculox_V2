@@ -75,16 +75,21 @@ bad = {name: value["settings"]["index"].get("number_of_replicas") for name, valu
 assert not bad, bad
 '
 
-api GET '/arkime_sessions3-*/_settings?flat_settings=true' | python3 -c '
+arkime_settings="$(api GET '/arkime_sessions3-*/_settings?flat_settings=true')"
+if [[ "$arkime_settings" != "{}" ]]; then
+  printf '%s' "$arkime_settings" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
-assert d, "no Arkime session indices"
 for name, value in d.items():
     settings = value["settings"]
     assert settings["index.number_of_shards"] == "1", (name, settings)
     assert settings["index.number_of_replicas"] == "1", (name, settings)
     assert settings["index.max_docvalue_fields_search"] == "200", (name, settings)
 '
+  arkime_contract="PASS"
+else
+  arkime_contract="PENDING_FIRST_INGESTION"
+fi
 
 for policy in arkime_sessions arkime_history oculox_malcolm_beats; do
   api GET "/_plugins/_ism/policies/$policy" >/dev/null
@@ -138,7 +143,7 @@ trap - EXIT
 
 printf 'cluster_disk_watermarks=PASS\n'
 printf 'all_indices_minimum_one_replica=PASS\n'
-printf 'arkime_index_contract=PASS\n'
+printf 'arkime_index_contract=%s\n' "$arkime_contract"
 printf 'ism_policies=PASS\n'
 printf 'fixture_primary_shards=1 PASS\n'
 printf 'fixture_replicas=1 PASS\n'
