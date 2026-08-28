@@ -71,6 +71,9 @@ def main() -> None:
             fail(f"{name}: unexpected restart policy")
         if not service.get("healthcheck", {}).get("test"):
             fail(f"{name}: healthcheck missing")
+        healthcheck = " ".join(service["healthcheck"]["test"])
+        if '"503"' not in healthcheck:
+            fail(f"{name}: healthcheck must tolerate the pre-Security startup response")
         if service.get("ports"):
             fail(f"{name}: a node port must not be published on the host")
 
