@@ -54,6 +54,8 @@ def main() -> None:
             fail(f"{name}: hostname must match service name")
         if environment.get("node.name") != name:
             fail(f"{name}: node.name must be unique")
+        if environment.get("network.publish_host") != name:
+            fail(f"{name}: network.publish_host must use the certificate DNS name")
         if environment.get("discovery.type") == "single-node":
             fail(f"{name}: inherited single-node mode")
         if environment.get("OPENSEARCH_SKIP_SELF_SIGNED_KEY_GEN") != "true":

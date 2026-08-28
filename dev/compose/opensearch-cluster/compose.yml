@@ -73,6 +73,7 @@ services:
     environment:
       <<: *opensearch-environment
       node.name: opensearch-1
+      network.publish_host: opensearch-1
     volumes:
       - type: volume
         source: opensearch-data-1
@@ -104,6 +105,7 @@ services:
     environment:
       <<: *opensearch-environment
       node.name: opensearch-2
+      network.publish_host: opensearch-2
     volumes:
       - type: volume
         source: opensearch-data-2
@@ -135,6 +137,7 @@ services:
     environment:
       <<: *opensearch-environment
       node.name: opensearch-3
+      network.publish_host: opensearch-3
     volumes:
       - type: volume
         source: opensearch-data-3
