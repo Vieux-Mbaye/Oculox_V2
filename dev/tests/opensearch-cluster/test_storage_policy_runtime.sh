@@ -132,11 +132,18 @@ python3 -c 'import json,sys; assert json.load(sys.stdin)["found"] is True' <<<"$
 
 "${compose[@]}" start "$stopped_service" >/dev/null
 stopped_service=""
-api GET '/_cluster/health?wait_for_status=green&timeout=180s' | python3 -c '
+for _ in $(seq 1 120); do
+  if recovery="$(api GET '/_cluster/health?wait_for_status=green&timeout=3s' 2>/dev/null)" && \
+    python3 -c 'import json, sys; d = json.load(sys.stdin); assert d["status"] == "green" and not d.get("timed_out"), d' <<<"$recovery"; then
+    break
+  fi
+  sleep 2
+done
+python3 -c '
 import json, sys
-d = json.load(sys.stdin)
+d = json.loads(sys.argv[1])
 assert d["status"] == "green" and not d.get("timed_out"), d
-'
+' "$recovery"
 
 api DELETE "/$index" >/dev/null
 trap - EXIT
