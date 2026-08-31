@@ -397,6 +397,10 @@ Keycloak vers Basic sera rejouée après la première activation en phase K5.
 
 Objectif : supprimer toute dépendance à une IP particulière.
 
+État au 31 août 2026 : **terminée et appliquée sur le Core local**. Le rapport
+d'implémentation et les commandes de reproduction se trouvent dans
+`dev/keycloak/05_phases_k1_k2_configuration_portable_pki_web.md`.
+
 Travaux :
 
 - centraliser l'identité publique du Core ;
@@ -410,12 +414,22 @@ Travaux :
 Tests : rendu IPv4, rendu DNS, rejet URL invalide, absence d'IP de laboratoire
 dans Git et seconde exécution sans changement de secret.
 
-Critère de sortie : la même révision Git fonctionne sur deux VM possédant des
-IP différentes.
+Résultat : `./oculox prepare principal --server-name <IP-ou-DNS>` centralise
+désormais l'identité publique, dérive les URL HTTPS et Keycloak, puis conserve
+les secrets déjà présents. Les tests couvrent IPv4, IPv6 et DNS. Aucune des
+adresses de laboratoire n'est codée dans les scripts génériques.
+
+Critère de sortie atteint au niveau logiciel : la même révision accepte des
+identités différentes sans modification du dépôt. La preuve d'installation
+complète sur deux VM reste intégrée au jalon K10.
 
 ### Phase K2 - PKI Web De Développement
 
 Objectif : valider TLS sans désactiver la sécurité.
+
+État au 31 août 2026 : **terminée et appliquée sur le Core local**. Keycloak
+reste volontairement en attente d'activation : le mode d'authentification
+actif demeure `basic` jusqu'à K5.
 
 Travaux :
 
@@ -428,6 +442,17 @@ Travaux :
 
 Preuves : `openssl verify` réussi, `curl --cacert` réussi, appel sans CA refusé,
 SAN correct et clé privée absente des bundles publics.
+
+Résultat : une CA Web propre au déploiement signe le certificat Nginx. Le SAN
+est calculé à partir de l'identité runtime. Dashboards reçoit la CA au moyen de
+`NODE_EXTRA_CA_CERTS`. Un mode `provided` accepte aussi un certificat fourni
+par une PKI d'entreprise après contrôle de son SAN, de sa chaîne et de sa clé.
+Sur le Core local, Nginx présente `IP:192.168.1.174`, la vérification OpenSSL
+retourne `0 (ok)`, l'appel sans CA est refusé et Dashboards reste `green`.
+
+La CA est préparée pour OpenSearch dans un bundle public sans clé privée. Son
+installation sur le cluster pour la validation OIDC/JWKS sera effectuée avec
+la configuration OpenSearch de K6, pas par une modification implicite distante.
 
 ### Phase K3 - Provisionnement Keycloak Idempotent
 

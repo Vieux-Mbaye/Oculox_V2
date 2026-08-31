@@ -45,6 +45,10 @@ CONFIG_PATHS=(
   nginx/htpasswd
   nginx/certs
   nginx/ca-trust
+  dev/generated/deployment.env
+  dev/generated/public-endpoint.env
+  dev/generated/web-pki
+  dev/generated/web-trust
 )
 
 EXISTING_PATHS=()

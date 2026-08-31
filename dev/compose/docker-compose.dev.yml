@@ -16,6 +16,10 @@ services:
 
   dashboards:
     restart: unless-stopped
+    environment:
+      # Dashboards is a Node.js application. This makes the deployment web CA
+      # available for the future HTTPS/OIDC connection to Keycloak.
+      NODE_EXTRA_CA_CERTS: /var/local/ca-trust/oculox-web-ca.crt
     volumes:
       # The official entrypoint copies this template to its writable runtime
       # configuration, then injects the OpenSearch credentials as usual.

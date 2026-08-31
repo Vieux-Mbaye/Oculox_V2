@@ -188,6 +188,8 @@ EOF
 prepare_principal() {
     [[ -n "$SERVER_NAME" ]] || { printf '%s\n' '--server-name est obligatoire' >&2; exit 2; }
     ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
+    ./dev/scripts/configure-public-endpoint.py --public-host "$SERVER_NAME"
+    ./dev/scripts/generate-web-pki.sh
     ./dev/scripts/generate-beats-pki.sh --server-name "$SERVER_NAME"
     ./dev/scripts/render-filebeat-ha-config.py \
         --output-dir "$PROJECT_DIR/dev/generated/filebeat" \
