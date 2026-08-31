@@ -33,6 +33,7 @@ services:
       - ./dashboards/scripts/shared-object-creation.sh:/usr/local/bin/shared-object-creation.sh:ro
       - ./dashboards/templates/malcolm_beats_template.json:/opt/templates/malcolm_beats_template.json:ro
       - ./dashboards/scripts/index-refresh.py:/usr/local/bin/index-refresh.py:ro
+      - ./dashboards/dashboards:/opt/dashboards:ro
 
   filebeat:
     restart: unless-stopped
