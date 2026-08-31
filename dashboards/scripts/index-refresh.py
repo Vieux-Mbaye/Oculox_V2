@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 from malcolm_constants import DatabaseMode
 
 GET_COMPONENT_TEMPLATE_URI = '_component_template'
+GET_FIELD_CAPS_URI = '_field_caps'
 GET_INDEX_TEMPLATE_URI = '_index_template'
 GET_SHARDS_URL = '_cat/shards?h=index,state'
 GET_STATUS_API = 'api/status'
@@ -286,11 +287,70 @@ def opensearch_fields_to_kibana_format(fields: list[dict]) -> dict[str, dict]:
     return result
 
 
+def field_caps_to_opensearch_format(field_caps: dict) -> list[dict]:
+    """Normalize OpenSearch field capabilities for the Dashboards Data Views API."""
+    result = []
+    type_map = {
+        'byte': 'number',
+        'double': 'number',
+        'float': 'number',
+        'half_float': 'number',
+        'integer': 'number',
+        'long': 'number',
+        'scaled_float': 'number',
+        'short': 'number',
+        'unsigned_long': 'number',
+        'date': 'date',
+        'date_nanos': 'date',
+        'ip': 'ip',
+        'keyword': 'string',
+        'text': 'string',
+        'boolean': 'boolean',
+        'geo_point': 'geo_point',
+    }
+
+    for name, types in field_caps.get('fields', {}).items():
+        if not isinstance(types, dict) or not types:
+            continue
+        es_type, metadata = next(iter(types.items()))
+        if not isinstance(metadata, dict):
+            continue
+        result.append(
+            {
+                'name': name,
+                'esTypes': list(types.keys()),
+                'type': type_map.get(es_type, 'string'),
+                'searchable': metadata.get('searchable', False),
+                'aggregatable': metadata.get('aggregatable', False),
+                'readFromDocValues': metadata.get('aggregatable', False),
+            }
+        )
+
+    return result
+
+
+def merge_fields(preferred: list[dict], fallback: list[dict]) -> list[dict]:
+    """Keep one field entry per name, preferring fresh OpenSearch metadata."""
+    result = {}
+    for field in fallback + preferred:
+        if field.get('name'):
+            result[field['name']] = field
+    return [result[name] for name in sorted(result)]
+
+
 def get_fields_list(args, session, index_id):
     if args.opensearch_mode == DatabaseMode.ElasticsearchRemote:
+        # A new remote Data View starts empty. Query OpenSearch directly rather
+        # than treating Dashboards' previous (possibly empty) field cache as
+        # authoritative.
+        resp = session.get(f"{args.opensearch_url}/{args.index}/{GET_FIELD_CAPS_URI}", params={'fields': '*'})
+        resp.raise_for_status()
+        result = field_caps_to_opensearch_format(resp.json())
+
         resp = session.get(f"{args.dashboards_url}/{KIBANA_DATA_VIEW_URI}/{index_id}")
         resp.raise_for_status()
-        result = kibana_fields_to_opensearch_format(malcolm_utils.deep_get(resp.json(), ['data_view', 'fields'], {}))
+        previous = kibana_fields_to_opensearch_format(malcolm_utils.deep_get(resp.json(), ['data_view', 'fields'], {}))
+        result = merge_fields(result, previous)
     else:
         resp = session.get(
             f"{args.dashboards_url}/{OPENSEARCH_GET_FIELDS_URI}",
@@ -300,6 +360,19 @@ def get_fields_list(args, session, index_id):
         result = malcolm_utils.deep_get(resp.json(), ['fields'], [])
 
     return result
+
+
+def mapping_fields(mapping: dict, prefix: str = ''):
+    """Yield leaf mapping fields, including nested ECS objects and flat names."""
+    properties = mapping.get('properties', mapping) if isinstance(mapping, dict) else {}
+    for name, metadata in properties.items():
+        if name in {'_meta', 'dynamic', 'dynamic_templates', 'properties'} or not isinstance(metadata, dict):
+            continue
+        field_name = f'{prefix}.{name}' if prefix else name
+        if metadata.get('type'):
+            yield field_name, metadata
+        if metadata.get('properties'):
+            yield from mapping_fields(metadata, field_name)
 
 
 def merge_template_fields(args, session, fields):
@@ -316,9 +389,8 @@ def merge_template_fields(args, session, fields):
         merge_field_types = {"date", "float", "integer", "ip", "keyword", "long", "short", "text"}
 
         for template in template_json.get('index_templates', []):
-            template_fields = malcolm_utils.deep_get(
-                template, ['index_template', 'template', 'mappings', 'properties'], default={}
-            )
+            template_mappings = malcolm_utils.deep_get(template, ['index_template', 'template', 'mappings'], default={})
+            mapping_sources = [template_mappings]
 
             # also include fields from component templates into template_fields before processing
             # https://opensearch.org/docs/latest/opensearch/index-templates/#composable-index-templates
@@ -327,35 +399,33 @@ def merge_template_fields(args, session, fields):
                 comp_resp.raise_for_status()
                 comp_json = comp_resp.json()
                 for component in comp_json.get('component_templates', []):
-                    props = malcolm_utils.deep_get(
-                        component, ['component_template', 'template', 'mappings', 'properties'], default={}
+                    component_mappings = malcolm_utils.deep_get(
+                        component, ['component_template', 'template', 'mappings'], default={}
                     )
-                    if props:
-                        template_fields.update(props)
+                    mapping_sources.append(component_mappings)
 
             # merge fields
-            for name, meta in template_fields.items():
-                # a field should be merged if it's not already in the list we have from Dashboards, and it's
-                # in the list of types we're merging (leave more complex types like nested and geolocation
-                # to be handled naturally as the data shows up)
-                if name not in fields_names and meta.get('type') in merge_field_types:
-                    mapped_type = (
-                        'number'
-                        if meta['type'] in {'float', 'integer', 'long', 'short'}
-                        else 'string' if meta['type'] in {'keyword', 'text'} else meta['type']
-                    )
-                    # create field dict in same format as those returned by GET_FIELDS_URI
-                    fields.append(
-                        {
-                            'name': name,
-                            'esTypes': [meta['type']],
-                            'type': mapped_type,
-                            'searchable': True,
-                            'aggregatable': "text" not in meta['type'],
-                            'readFromDocValues': "text" not in meta['type'],
-                        }
-                    )
-                    fields_names.add(name)
+            for mapping_source in mapping_sources:
+                for name, meta in mapping_fields(mapping_source):
+                    # A field should be merged if it is not already in the list and
+                    # has a scalar mapping Dashboards can represent.
+                    if name not in fields_names and meta.get('type') in merge_field_types:
+                        mapped_type = (
+                            'number'
+                            if meta['type'] in {'float', 'integer', 'long', 'short'}
+                            else 'string' if meta['type'] in {'keyword', 'text'} else meta['type']
+                        )
+                        fields.append(
+                            {
+                                'name': name,
+                                'esTypes': [meta['type']],
+                                'type': mapped_type,
+                                'searchable': True,
+                                'aggregatable': "text" not in meta['type'],
+                                'readFromDocValues': "text" not in meta['type'],
+                            }
+                        )
+                        fields_names.add(name)
 
         return fields
 
