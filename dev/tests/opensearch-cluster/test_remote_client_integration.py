@@ -143,6 +143,15 @@ def main() -> None:
     assert dashboards_config["opensearch_security"]["auth"]["type"] == "basicauth"
     assert "multiple_auth_enabled" not in dashboards_config["opensearch_security"]["auth"]
     assert "proxycache" not in dashboards_config["opensearch_security"]
+    dashboards_cookie = dashboards_config["opensearch_security"]["cookie"]
+    assert dashboards_cookie["name"] == "oculox_security_authentication"
+    assert dashboards_cookie["secure"] is True
+    assert dashboards_cookie["isSameSite"] == "Lax"
+    assert dashboards_cookie["password"] == "_MALCOLM_DASHBOARDS_COOKIE_PASSWORD_"
+    dashboards_entrypoint = (PROJECT_DIR / "dashboards/scripts/docker_entrypoint.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "_MALCOLM_DASHBOARDS_COOKIE_PASSWORD_/$OPENSSL_PASSWORD" in dashboards_entrypoint
     assert 'NGINX_DASHBOARDS_REMOTE_BASIC_REWRITE_CONF' in nginx_entrypoint
     compose_override = COMPOSE_OVERRIDE.read_text(encoding="utf-8")
     assert "./nginx/scripts/docker_entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro" in compose_override

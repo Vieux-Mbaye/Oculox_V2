@@ -31,6 +31,12 @@ if [[ -f "$ORIG_YML" ]]; then
         sed -i "s/_MALCOLM_DASHBOARDS_OPENSEARCH_PASSWORD_/$OPENSSL_PASSWORD/g" "$FINAL_YML" || \
         sed -i '/_MALCOLM_DASHBOARDS_OPENSEARCH_PASSWORD_/d' "$FINAL_YML"
 
+    # Reuse the generated Dashboards service secret as the session encryption
+    # key. A dedicated cookie name invalidates sessions from older auth modes.
+    [[ -n "$OPENSSL_PASSWORD" ]] && \
+        sed -i "s/_MALCOLM_DASHBOARDS_COOKIE_PASSWORD_/$OPENSSL_PASSWORD/g" "$FINAL_YML" || \
+        sed -i '/_MALCOLM_DASHBOARDS_COOKIE_PASSWORD_/d' "$FINAL_YML"
+
     ( [[ "$OPENSEARCH_SSL_CERTIFICATE_VERIFICATION" == "true" ]] && [[ "$OPENSEARCH_PRIMARY" != "opensearch-local" ]] ) && \
         SSL_VERIFICATION_MODE=certificate || \
         SSL_VERIFICATION_MODE=none

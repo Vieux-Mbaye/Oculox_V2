@@ -28,6 +28,11 @@ opensearch:
 opensearch_security:
   auth:
     type: "basicauth"
+  cookie:
+    name: "oculox_security_authentication"
+    password: "_MALCOLM_DASHBOARDS_COOKIE_PASSWORD_"
+    secure: true
+    isSameSite: "Lax"
   multitenancy:
     enabled: false
     enable_filter: false
