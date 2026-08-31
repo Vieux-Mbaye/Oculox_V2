@@ -2470,7 +2470,9 @@ def authSetup():
                                 (
                                     args.authKeycloakRealm
                                     if args.authKeycloakRealm
-                                    else envValues[keycloakEnvFile].get('KEYCLOAK_AUTH_REALM', 'master')
+                                    else envValues[keycloakEnvFile].get(
+                                        'KEYCLOAK_AUTH_REALM', 'oculox'
+                                    )
                                 ),
                                 (
                                     'keycloak',

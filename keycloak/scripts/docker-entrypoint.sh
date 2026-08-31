@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-if [[ "${NGINX_AUTH_MODE:-keycloak}" == "keycloak" ]]; then
+set -euo pipefail
+
+if [[ "${NGINX_AUTH_MODE:-basic}" == "keycloak" ]]; then
+  /usr/local/bin/hardening-preflight.sh
+
   POSTGRES_HOST=${POSTGRES_HOST:-postgres}
   PGPORT=${PGPORT:-5432}
   POSTGRES_MAIN_DB=${POSTGRES_DB:-postgres}
@@ -27,7 +31,8 @@ if [[ "${NGINX_AUTH_MODE:-keycloak}" == "keycloak" ]]; then
   echo "PostgreSQL is up and ready at ${KC_DB_URL}!"
 fi
 
-[[ -x /usr/local/bin/realm-setup.sh ]] && \
-  ( setsid bash -c '/usr/local/bin/realm-setup.sh >/dev/null 2>&1 </dev/null &' ) >/dev/null 2>&1 </dev/null
+if [[ -x /usr/local/bin/realm-setup.sh ]]; then
+  setsid /usr/local/bin/realm-setup.sh </dev/null &
+fi
 
 exec "$@"

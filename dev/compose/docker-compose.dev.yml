@@ -70,6 +70,12 @@ services:
 
   keycloak:
     restart: unless-stopped
+    volumes:
+      # Run the reviewed Oculox provisioning code even when the upstream
+      # Keycloak image is used. These mounts never contain runtime secrets.
+      - ./keycloak/scripts/docker-entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro
+      - ./keycloak/scripts/hardening-preflight.sh:/usr/local/bin/hardening-preflight.sh:ro
+      - ./keycloak/scripts/realm-setup.sh:/usr/local/bin/realm-setup.sh:ro
 
   logstash:
     restart: unless-stopped
