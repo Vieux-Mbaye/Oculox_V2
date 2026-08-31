@@ -19,6 +19,12 @@ La branche de travail est :
 feature/keycloak-oidc-integration
 ```
 
+Le point de retour du code est nommé par le tag Git local :
+
+```text
+keycloak-k0-baseline
+```
+
 La révision de départ enregistrée dans la baseline est :
 
 ```text
@@ -268,6 +274,16 @@ Sans identifiants, le résultat attendu est `401`.
 
 Cette procédure est réservée à une panne qui nécessite de restaurer tous les
 fichiers runtime. Elle doit être exécutée depuis la même révision applicative.
+
+Pour retrouver le point de référence du code sans modifier immédiatement les
+fichiers locaux :
+
+```bash
+git show --stat keycloak-k0-baseline
+```
+
+Le tag protège le code et la documentation. L'archive privée protège les
+valeurs runtime; ces deux éléments sont complémentaires.
 
 1. Arrêter proprement Oculox :
 
