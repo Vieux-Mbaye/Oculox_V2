@@ -27,11 +27,7 @@ opensearch:
 
 opensearch_security:
   auth:
-    type: ["basicauth","proxy"]
-    multiple_auth_enabled: true
-  proxycache:
-    user_header: "X-Forwarded-User"
-    roles_header: "X-Forwarded-Roles"
+    type: "basicauth"
   multitenancy:
     enabled: false
     enable_filter: false

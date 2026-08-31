@@ -21,6 +21,7 @@ NGINX_DASHBOARDS_REWRITE = PROJECT_DIR / "nginx/nginx_dashboards_rewrite_dashboa
 NGINX_DASHBOARDS_REMOTE_BASIC_REWRITE = PROJECT_DIR / "nginx/nginx_dashboards_rewrite_remote_basic.conf"
 NGINX_DASHBOARDS_REMOTE_SERVER = PROJECT_DIR / "nginx/nginx_dashboards_remote_server.conf"
 COMPOSE_OVERRIDE = PROJECT_DIR / "dev/compose/docker-compose.dev.yml"
+DASHBOARDS_CONFIG = PROJECT_DIR / "dashboards/opensearch_dashboards.yml"
 TARGET = "/var/local/curlrc/.opensearch.primary.curlrc"
 
 
@@ -87,7 +88,7 @@ def primary_source(service: dict) -> str:
 
 
 def main() -> None:
-    for path in (RENDERER, BUILDER, IMPORTER, LAUNCHER, NGINX_ENTRYPOINT, COMPOSE_OVERRIDE):
+    for path in (RENDERER, BUILDER, IMPORTER, LAUNCHER, NGINX_ENTRYPOINT, COMPOSE_OVERRIDE, DASHBOARDS_CONFIG):
         assert path.is_file(), path
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -136,7 +137,12 @@ def main() -> None:
     assert "return 302 https://$host:5601$request_uri;" in remote_basic_rewrite
     remote_server = NGINX_DASHBOARDS_REMOTE_SERVER.read_text(encoding="utf-8")
     assert "listen 5601 ssl;" in remote_server
-    assert 'proxy_set_header Authorization "";' in remote_server
+    assert 'proxy_set_header Authorization $http_authorization;' in remote_server
+    assert 'proxy_set_header Authorization "";' not in remote_server
+    dashboards_config = yaml.safe_load(DASHBOARDS_CONFIG.read_text(encoding="utf-8"))
+    assert dashboards_config["opensearch_security"]["auth"]["type"] == "basicauth"
+    assert "multiple_auth_enabled" not in dashboards_config["opensearch_security"]["auth"]
+    assert "proxycache" not in dashboards_config["opensearch_security"]
     assert 'NGINX_DASHBOARDS_REMOTE_BASIC_REWRITE_CONF' in nginx_entrypoint
     compose_override = COMPOSE_OVERRIDE.read_text(encoding="utf-8")
     assert "./nginx/scripts/docker_entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro" in compose_override
