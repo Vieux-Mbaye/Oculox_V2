@@ -263,10 +263,17 @@ Pour Dashboards, utilisez l'origine dédiée :
 https://192.168.1.174:5601/dashboards/
 ```
 
-Connectez-vous à Dashboards avec `oculox_platform_admin` pendant
-l'administration. Le compte `oculox_dashboards` est un compte de service du
-conteneur, pas un compte humain: il ne doit pas être utilisé dans un navigateur
-et affichera des erreurs de permission sur les panneaux.
+Connectez-vous au portail et à Dashboards avec les comptes humains Keycloak
+provisionnés par Oculox, par exemple `oculox-admin`, `oculox-analyst`,
+`oculox-incident-response` ou `oculox-viewer`. Pour l'administration humaine,
+utilisez `oculox-admin` via le SSO Keycloak.
+
+`oculox_platform_admin` est le compte d'administration technique OpenSearch. Il
+sert aux scripts, aux vérifications contrôlées et aux opérations de secours; il
+ne doit pas être le compte quotidien du navigateur. Le compte
+`oculox_dashboards` est un compte de service du conteneur Dashboards: il ne
+doit jamais être utilisé dans un navigateur et affichera des erreurs de
+permission sur les panneaux.
 
 Un cluster neuf ne contient pas encore de trafic. Avec un compte autorisé, les
 écrans peuvent alors afficher zéro résultat ou une visualisation vide; ce n'est
@@ -468,8 +475,16 @@ replicas protègent contre la perte d'un nœud, mais ne remplacent pas une
 sauvegarde contre une suppression, une corruption logique ou la perte complète
 de la VM Cluster.
 
-Pour les utilisateurs humains Dashboards, créez ensuite des comptes dédiés et
-des rôles lecture seule ou lecture-écriture. Ne partagez pas
-`oculox_platform_admin` pour l'usage quotidien et n'utilisez jamais les comptes
-techniques `oculox_dashboards`, `oculox_logstash`, `oculox_arkime` ou
-`oculox_api` dans un navigateur.
+Les utilisateurs humains Dashboards sont provisionnés côté Keycloak et reliés à
+OpenSearch Security par les rôles OIDC. Les profils attendus sont
+`oculox-admin`, `oculox-analyst`, `oculox-incident-response` et
+`oculox-viewer`. Vérifiez-les avec :
+
+```bash
+./oculox keycloak verify-hardening
+./oculox keycloak credentials
+```
+
+Ne partagez pas `oculox_platform_admin` pour l'usage quotidien et n'utilisez
+jamais les comptes techniques `oculox_dashboards`, `oculox_logstash`,
+`oculox_arkime` ou `oculox_api` dans un navigateur.

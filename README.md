@@ -123,24 +123,35 @@ cluster OpenSearch avant de demarrer Dashboards, Logstash, Arkime et l'API.
 Sur la VM cluster :
 
 ```bash
-cd ~/Oculox
-./oculox install cluster --endpoint-ip <IP_CLUSTER>
+cd ~/Oculox_V2
+cp dev/config/opensearch-cluster/cluster.yml.example ~/oculox-cluster.yml
+nano ~/oculox-cluster.yml
+./oculox install cluster --config ~/oculox-cluster.yml --check
+./oculox install cluster --config ~/oculox-cluster.yml
 ```
 
 Arguments :
 
 - `install cluster` prepare une VM dediee au stockage OpenSearch ;
-- `--endpoint-ip <IP_CLUSTER>` indique l'adresse qui sera mise dans les
-  certificats et exposee aux clients Core/Hedgehog ;
+- `--config ~/oculox-cluster.yml` declare l'endpoint, le profil, la heap, les
+  watermarks, les politiques de stockage et les ports exposes ;
+- `--check` valide la configuration et le Compose rendu sans demarrer le
+  cluster ;
 - le script genere la PKI, rend les fichiers Compose, demarre les trois noeuds,
   initialise OpenSearch Security et publie l'endpoint HTTPS.
+
+Pour un laboratoire rapide, `./oculox install cluster --endpoint-ip
+<IP_CLUSTER>` reste accepte. Pour une installation partagee ou reproductible,
+le fichier `~/oculox-cluster.yml` est preferable.
 
 Verifier :
 
 ```bash
 ./oculox cluster status
 ./oculox cluster validate
-curl -k https://<IP_CLUSTER>:9200/_cluster/health?pretty
+curl --cacert dev/generated/opensearch-cluster/pki/client-trust/oculox-opensearch-ca.crt \
+  -u oculox_platform_admin \
+  https://<IP_CLUSTER>:9200/_cluster/health?pretty
 ```
 
 La sante attendue pour une plateforme propre est :
@@ -154,8 +165,9 @@ unassigned_shards: 0
 Creer ensuite le bundle Core :
 
 ```bash
-./oculox cluster client-bundle core /tmp/oculox-core-opensearch
-cd /tmp/oculox-core-opensearch
+mkdir -p ~/oculox-bundles
+./oculox cluster client-bundle core ~/oculox-bundles/core
+cd ~/oculox-bundles/core
 sha256sum -c SHA256SUMS
 ```
 
@@ -167,18 +179,18 @@ Core. Il contient des secrets et ne doit jamais etre ajoute a Git.
 Sur la VM Core :
 
 ```bash
-cd ~/Oculox
-mkdir -p dev/generated/opensearch-bundles
-scp -r <user>@<IP_CLUSTER>:/tmp/oculox-core-opensearch \
-  dev/generated/opensearch-bundles/
+cd ~/Oculox_V2
+mkdir -p ~/oculox-bundles
+scp -r <user>@<IP_CLUSTER>:/home/<user>/oculox-bundles/core \
+  ~/oculox-bundles/
 
-cd dev/generated/opensearch-bundles/oculox-core-opensearch
+cd ~/oculox-bundles/core
 sha256sum -c SHA256SUMS
 
-cd ~/Oculox
+cd ~/Oculox_V2
 ./oculox install principal \
   --server-name <IP_CORE_OU_DNS> \
-  --opensearch-bundle dev/generated/opensearch-bundles/oculox-core-opensearch
+  --opensearch-bundle ~/oculox-bundles/core
 ```
 
 Arguments :
@@ -219,7 +231,7 @@ Arkime, creer le bundle Hedgehog cote cluster :
 Sur la VM collecteur :
 
 ```bash
-cd ~/Oculox
+cd ~/Oculox_V2
 ./oculox install hedgehog \
   --principal-host <IP_CORE_OU_DNS> \
   --collector-name <nom-collecteur> \
