@@ -1,55 +1,59 @@
-# Sources de configuration OpenSearch
+# Configuration Du Cluster OpenSearch
 
-Ce repertoire contient uniquement les modeles et configurations non secretes
-du cluster :
+Ce repertoire contient les modeles versionnes du cluster OpenSearch dedie.
+
+## Contenu
+
+| Chemin | Role |
+|---|---|
+| `cluster.env.example` | Variables minimales pour valider le Compose sans secret |
+| `cluster.yml.example` | Exemple de configuration declarative du cluster |
+| `opensearch.yml.template` | Modele de configuration des noeuds OpenSearch |
+| `haproxy.cfg.template` | Modele de l'endpoint client stable |
+| `security/` | Roles, mappings, utilisateurs et configuration Security versionnes |
+
+## Principe
+
+Les fichiers ici sont des modeles. Ils ne doivent pas contenir :
+
+- mot de passe ;
+- hash reel d'utilisateur ;
+- cle privee ;
+- certificat genere ;
+- IP client specifique hors exemple ;
+- bundle Core ou Hedgehog.
+
+Les valeurs reelles sont rendues dans :
 
 ```text
-configuration commune OpenSearch
-configuration propre a chaque noeud
-modeles du plugin Security
-configuration du proxy
-exemples de variables d'environnement
+dev/generated/opensearch-cluster/
 ```
 
-Les fichiers versionnes doivent utiliser des variables ou des marqueurs pour
-les valeurs de deploiement. L'operateur fournit l'endpoint dans son fichier
-`cluster.yml`, sous la forme :
+## Moindre Privilege
+
+Les comptes techniques ne partagent pas un administrateur global. Les roles sont
+separes par service :
 
 ```text
-https://<IP_CLUSTER>:9200
+Logstash             -> ecriture ingestion
+Arkime               -> index Arkime et sessions
+Dashboards           -> service Dashboards
+Dashboards helper    -> objets partages et templates
+API / pcap-monitor   -> lecture API necessaire
+Snapshot             -> operations snapshot dediees
 ```
 
-L'adresse ne doit pas etre dupliquee dans plusieurs fichiers sources. Les
-certificats, cles, mots de passe, fichiers `.curlrc`, keystores et configurations
-contenant des secrets sont interdits dans ce repertoire.
+Les utilisateurs humains arrivent via Keycloak/OIDC. Leurs roles Keycloak sont
+vus par OpenSearch Security comme des backend roles.
 
-Les fichiers effectifs rendus a partir de ces sources seront places dans
-`dev/generated/opensearch-cluster/`.
+## Validation
 
-Copier `cluster.yml.example` hors du depot ou dans un emplacement operateur,
-modifier uniquement les valeurs utiles, puis lancer :
+Depuis la racine :
 
 ```bash
-./oculox install cluster --config /chemin/cluster.yml
+python3 -m unittest discover -s dev/tests/opensearch-cluster -p 'test_*.py'
+./oculox verify clients
 ```
 
-Une installation rapide avec les valeurs par defaut utilise :
-
-```bash
-./oculox install cluster --endpoint-ip <IP_CLUSTER>
-```
-
-Le profil `lab` autorise trois noeuds avec `1g` de heap chacun et exige au
-minimum 6 Gio de RAM et 25 Gio libres. Le profil `production` exige au moins
-`2g` de heap par noeud, 12 Gio de RAM et 100 Gio libres. Ces seuils sont des
-garde-fous Oculox, pas des limites imposees par OpenSearch.
-
-`opensearch.yml` active TLS sur les couches HTTP et transport, declare les
-trois DN de noeud et le DN du certificat administrateur. Les chemins des
-certificats sont relatifs au repertoire `config`, comme l'exige le plugin
-Security.
-
-`setup-post-start.sh` neutralise provisoirement l'initialisation
-automatique du Security index effectuee par l'image Malcolm. Cette operation
-doit etre executee une seule fois pendant la Security initialization, pas en parallele par les
-trois conteneurs.
+`verify clients` doit confirmer que chaque service s'authentifie avec son propre
+compte et non avec un super utilisateur partage.

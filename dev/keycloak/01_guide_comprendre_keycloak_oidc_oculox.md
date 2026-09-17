@@ -738,7 +738,7 @@ ressaisir son mot de passe et ne voit que les fonctions autorisées.
 
 Objectif : prouver l'autorisation, pas seulement l'authentification.
 
-Créer quatre comptes de test :
+Créer quatre comptes de validation :
 
 ```text
 administrateur

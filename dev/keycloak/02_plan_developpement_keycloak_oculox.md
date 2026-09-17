@@ -473,6 +473,12 @@ Travaux :
 Tests : première exécution, deuxième exécution sans doublon, préservation des
 secrets, absence de wildcard et compte bootstrap retiré.
 
+Statut : réalisé. La commande `./oculox keycloak provision` prépare les
+secrets runtime, démarre Keycloak sur PostgreSQL, crée le realm et ses objets,
+écrit un rapport puis désactive le mode de provisionnement. Le compte de
+récupération est supprimé après succès. Les détails et commandes sont dans
+[`06_provisionnement_keycloak_et_modele_iam.md`](06_provisionnement_keycloak_et_modele_iam.md).
+
 ### Phase K4 - Modèle IAM Et RBAC
 
 Objectif : appliquer le moindre privilège.
@@ -483,15 +489,42 @@ Travaux :
 - séparer lecture, écriture, administration, PCAP et Hunt ;
 - vérifier les expansions de rôles Nginx ;
 - supprimer toute attribution implicite trop large ;
-- créer des utilisateurs de test ;
+- créer des comptes de validation opérationnels ;
 - documenter arrivée, changement de fonction et départ.
 
 Tests : accès lecteur, refus écriture, refus PCAP sans rôle, accès Hunt analyste,
 refus utilisateur sans groupe et accès administrateur.
 
+Statut : réalisé pour le modèle Keycloak. Les rôles, groupes, comptes de validation,
+clients OIDC, redirections exactes et protections de realm sont vérifiés dans
+le rapport JSON. L'application effective du RBAC sur les routes Nginx et dans
+OpenSearch reste volontairement en K5 et K6 : le portail conserve Basic tant
+que les tests de bascule n'ont pas été réalisés.
+
 ### Phase K5 - OIDC Nginx Et Portail
 
 Objectif : faire de Keycloak la méthode principale sur le port `443`.
+
+Etat au 9 septembre 2026 : **implémentation logicielle terminée et testée
+localement**. L'activation opérationnelle sur une VM en cours d'exécution reste
+une action contrôlée à lancer explicitement après K3/K4 :
+
+```text
+./oculox keycloak provision
+./oculox keycloak activate-portal
+./oculox restart nginx-proxy keycloak
+./oculox keycloak verify-portal
+```
+
+Le retour arrière est explicite :
+
+```text
+./oculox keycloak deactivate-portal
+./oculox restart nginx-proxy
+```
+
+Le rapport détaillé est dans
+[`07_phase_k5_oidc_nginx_portail.md`](07_phase_k5_oidc_nginx_portail.md).
 
 Configuration cible :
 
@@ -509,9 +542,34 @@ les cookies, nettoyer les en-têtes entrants et gérer logout et expiration.
 Tests : login valide/invalide, groupe absent, SSO, expiration, logout et rejet
 d'un faux `X-Forwarded-Roles`.
 
+Preuves logicielles ajoutées :
+
+- refus d'activation sans rapport de realm `PASS` ;
+- activation de `NGINX_AUTH_MODE=keycloak` ;
+- activation de `ROLE_BASED_ACCESS=true` ;
+- obligation du groupe `/oculox-users` ;
+- conservation du client `oculox-portal` ;
+- validation TLS Keycloak maintenue ;
+- cookies OIDC `Secure`, `HttpOnly`, `SameSite=Lax` ;
+- nettoyage des en-têtes `X-Forwarded-User`, `X-Forwarded-Groups` et
+  `X-Forwarded-Roles` avant reconstruction par Nginx.
+
+Limite volontaire : K5 ne configure pas encore Dashboards en OIDC natif et ne
+modifie pas le domaine OIDC OpenSearch. Ces points restent en K6.
+
 ### Phase K6 - OIDC Dashboards Et OpenSearch
 
 Objectif : obtenir le SSO Dashboards sans supprimer les comptes techniques.
+
+Etat au 9 septembre 2026 : **implémentation logicielle réalisée et testée
+localement**. Le rapport d'implémentation, les fichiers touchés et les
+commandes de reproduction sont dans
+[`08_oidc_dashboards_opensearch.md`](08_oidc_dashboards_opensearch.md).
+
+Point de sécurité important : quand Keycloak utilise le certificat web de
+développement du Core, la CA web du Core doit être installée explicitement dans
+le cluster OpenSearch avec `--keycloak-ca`. Cela permet au plugin Security
+OpenSearch de vérifier l'URL OIDC en HTTPS sans désactiver TLS.
 
 Travaux :
 
@@ -538,6 +596,25 @@ de secrets dans Git.
 
 Critère de sortie : chaque mesure possède une preuve et un test négatif.
 
+Etat au 9 septembre 2026 : **implémentation logicielle réalisée**. Le rapport
+détaillé, les fichiers touchés et les commandes de contrôle sont dans
+[`09_durcissement_fonctionnel.md`](09_durcissement_fonctionnel.md).
+
+La commande de preuve est :
+
+```text
+./oculox keycloak verify-hardening
+```
+
+Elle vérifie le mode Keycloak actif, le RBAC, l'obligation du groupe
+`/oculox-users`, OIDC Dashboards, le realm `oculox`, HTTPS, hostname strict,
+vérification TLS, MFA TOTP, protection brute force, rotation des refresh
+tokens, durée courte des access tokens, audit, restriction réseau de
+`/keycloak/admin`, URI de redirection exactes, absence de Direct Access Grant,
+désactivation du provisionnement après usage, nettoyage des secrets
+temporaires, permissions `0600` et absence de fichiers sensibles suivis par
+Git.
+
 ### Phase K8 - Non-Régression Du Pipeline
 
 Objectif : démontrer que Keycloak ne casse pas la plateforme industrielle.
@@ -556,6 +633,26 @@ documents OpenSearch augmentent
 sessions Arkime augmentent
 ingestion continue pendant la panne Keycloak
 ```
+
+État au 2026-09-09 : validé sur le Core local connecté au cluster OpenSearch
+`https://192.168.1.200:9200`.
+
+Le test a volontairement arrêté Keycloak, injecté le PCAP
+`pcap/processed/mnetsniff-wlo1_1786618984.pcap`, puis vérifié que Filebeat,
+les deux Logstash, Arkime et OpenSearch continuaient à fonctionner.
+
+Résultat principal :
+
+```text
+INGESTION_RESULT=PASS
+CLIENT_CONNECTIVITY_RESULT=PASS
+KEYCLOAK_HARDENING_RESULT=PASS après redémarrage Keycloak
+KEYCLOAK_PORTAL_RESULT=PASS après redémarrage Keycloak
+KEYCLOAK_DASHBOARDS_RESULT=PASS après redémarrage Keycloak
+```
+
+Le rapport détaillé, les commandes et l'explication des compteurs sont dans
+[`10_non_regression_pipeline.md`](10_non_regression_pipeline.md).
 
 ### Phase K9 - Sauvegarde, Restauration Et Rotation
 

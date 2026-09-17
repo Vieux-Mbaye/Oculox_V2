@@ -78,3 +78,42 @@ Le certificat et la cle de l'endpoint ne sont pas montes dans les noeuds. Ils
 sont reserves au proxy de l.endpoint stable. La cle administrateur reste egalement
 hors des conteneurs et sera utilisee ponctuellement par `securityadmin.sh`
 pendant l.initialisation Security.
+
+## Fichiers Versionnes Et Fichiers Generes
+
+Versionnes :
+
+```text
+compose.yml
+compose.bootstrap.yml
+README.md
+```
+
+Generes localement et ignores par Git :
+
+```text
+dev/generated/opensearch-cluster/
+dev/generated/opensearch-cluster/pki/
+dev/generated/opensearch-cluster/security/
+dev/generated/opensearch-cluster/client-bundles/
+```
+
+Le Compose versionne decrit la structure. Les valeurs propres a une VM
+certificats, mots de passe, hashes, endpoint final et bundles sont generees par
+les scripts.
+
+## Commandes Utilisateur
+
+L'operateur ne lance normalement pas `docker compose` directement. Il passe par :
+
+```bash
+./oculox install cluster --endpoint-ip <IP_CLUSTER>
+./oculox cluster status
+./oculox cluster logs
+./oculox cluster validate
+./oculox cluster client-bundle core /tmp/oculox-core-opensearch
+```
+
+`./oculox` choisit automatiquement le Compose de bootstrap uniquement quand le
+cluster est initialise pour la premiere fois. Les redemarrages ordinaires
+utilisent le Compose permanent.
