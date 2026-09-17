@@ -28,6 +28,7 @@ frontend opensearch_endpoint_monitoring
   bind :8404
   monitor-uri /healthz
   monitor fail if { nbsrv(opensearch_nodes) lt 1 }
+  http-request redirect code 302 location /stats if { path -i / }
   stats enable
   stats uri /stats
   stats show-legends

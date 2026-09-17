@@ -226,6 +226,12 @@ function _M.init()
 end
 
 function _M.set_headers(username, token, groups, roles)
+    -- Never trust identity headers supplied by the client. Every protected
+    -- request must get a fresh identity from the active authentication method.
+    ngx.req.clear_header("X-Forwarded-User")
+    ngx.req.clear_header("X-Forwarded-Groups")
+    ngx.req.clear_header("X-Forwarded-Roles")
+
     if username ~= nil and username ~= '' then
         ngx.req.set_header("X-Forwarded-User", username)
     end

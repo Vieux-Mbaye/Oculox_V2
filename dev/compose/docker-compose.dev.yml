@@ -22,8 +22,11 @@ services:
       NODE_EXTRA_CA_CERTS: /var/local/ca-trust/oculox-web-ca.crt
     volumes:
       # The official entrypoint copies this template to its writable runtime
-      # configuration, then injects the OpenSearch credentials as usual.
-      - ./dashboards/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.orig.yml:ro
+      # configuration, then injects the OpenSearch credentials as usual. Keep
+      # it outside /usr/share/opensearch-dashboards/config because the image
+      # owns that directory as a Docker volume.
+      - ./dashboards/opensearch_dashboards.yml:/tmp/oculox/opensearch_dashboards.orig.yml:ro
+      - ./dashboards/scripts/docker_entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro
 
   dashboards-helper:
     restart: unless-stopped
@@ -77,7 +80,8 @@ services:
     volumes:
       # Run the reviewed Oculox provisioning code even when the upstream
       # Keycloak image is used. These mounts never contain runtime secrets.
-      - ./keycloak/scripts/docker-entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro
+      - ./shared/bin/service_check_passthrough.sh:/usr/local/bin/service_check_passthrough.sh:ro
+      - ./keycloak/scripts/docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh:ro
       - ./keycloak/scripts/hardening-preflight.sh:/usr/local/bin/hardening-preflight.sh:ro
       - ./keycloak/scripts/realm-setup.sh:/usr/local/bin/realm-setup.sh:ro
 
@@ -118,7 +122,11 @@ services:
     volumes:
       - ./dev/branding:/opt/oculox-branding:ro
       - ./nginx/landingpage:/opt/oculox-landingpage:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/scripts/docker_entrypoint.sh:/usr/local/bin/docker_entrypoint.sh:ro
+      - ./nginx/nginx_envs.conf:/etc/nginx/nginx_envs.conf:ro
+      - ./nginx/nginx_auth_keycloak.conf:/etc/nginx/nginx_auth_keycloak.conf:ro
+      - ./nginx/nginx_auth_keycloak_basic.conf:/etc/nginx/nginx_auth_keycloak_basic.conf:ro
       - ./nginx/nginx_dashboards_rewrite_dashboards.conf:/etc/nginx/nginx_dashboards_rewrite_dashboards.conf:ro
       - ./nginx/nginx_dashboards_rewrite_remote_basic.conf:/etc/nginx/nginx_dashboards_rewrite_remote_basic.conf:ro
       - ./nginx/nginx_dashboards_remote_server.conf:/etc/nginx/conf.d/02_oculox_dashboards_remote.conf:ro

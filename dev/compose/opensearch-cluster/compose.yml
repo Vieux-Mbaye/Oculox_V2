@@ -47,6 +47,7 @@ x-opensearch-service: &opensearch-service
     - "9300"
   networks:
     - cluster-transport
+    - idp-egress
   logging:
     driver: local
     options:
@@ -98,6 +99,10 @@ services:
         source: ../../generated/opensearch-cluster/pki/nodes/opensearch-1
         target: /usr/share/opensearch/config/certs
         read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/idp-trust
+        target: /usr/share/opensearch/config/idp-trust
+        read_only: true
 
   opensearch-2:
     <<: *opensearch-service
@@ -130,6 +135,10 @@ services:
         source: ../../generated/opensearch-cluster/pki/nodes/opensearch-2
         target: /usr/share/opensearch/config/certs
         read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/idp-trust
+        target: /usr/share/opensearch/config/idp-trust
+        read_only: true
 
   opensearch-3:
     <<: *opensearch-service
@@ -161,6 +170,10 @@ services:
       - type: bind
         source: ../../generated/opensearch-cluster/pki/nodes/opensearch-3
         target: /usr/share/opensearch/config/certs
+        read_only: true
+      - type: bind
+        source: ../../generated/opensearch-cluster/idp-trust
+        target: /usr/share/opensearch/config/idp-trust
         read_only: true
 
   opensearch-endpoint:
@@ -218,6 +231,9 @@ networks:
     internal: true
   endpoint-ingress:
     name: oculox-opensearch-endpoint-ingress
+    driver: bridge
+  idp-egress:
+    name: oculox-opensearch-idp-egress
     driver: bridge
 
 volumes:

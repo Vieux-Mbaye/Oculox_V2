@@ -79,7 +79,7 @@ docker compose \
     config > "$rendered"
 
 grep -q '/opt/oculox-branding/install-nginx-branding.sh' "$rendered"
-grep -q '/usr/share/opensearch-dashboards/config/opensearch_dashboards.orig.yml' "$rendered"
+grep -q '/tmp/oculox/opensearch_dashboards.orig.yml' "$rendered"
 grep -q '/var/www/upload/logo_Oculox.png' "$rendered"
 grep -q '/var/www/upload/icone_logo.png' "$rendered"
 grep -q '/var/www/htadmin/icone_logo.png' "$rendered"

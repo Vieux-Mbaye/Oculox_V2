@@ -73,6 +73,7 @@ def main() -> None:
 
     public_url = f"https://{url_host}"
     keycloak_url = f"{public_url}/keycloak"
+    dashboards_redirect_uri = f"{public_url}:5601/dashboards/auth/openid/login"
     values = {
         "OCULOX_PUBLIC_HOST": host,
         "OCULOX_PUBLIC_IDENTITY_TYPE": identity_type,
@@ -93,8 +94,10 @@ def main() -> None:
             "KEYCLOAK_BOOTSTRAP_REALM": "master",
             "KEYCLOAK_AUTH_REDIRECT_URI": "/index.html",
             "KEYCLOAK_AUTH_URL": keycloak_url,
+            "KEYCLOAK_DASHBOARDS_REDIRECT_URI": dashboards_redirect_uri,
             "KEYCLOAK_SSL_VERIFY": "true",
             "KC_HOSTNAME": keycloak_url,
+            "KC_HOSTNAME_BACKCHANNEL_DYNAMIC": "true",
             "KC_HOSTNAME_STRICT": "true",
         },
     )

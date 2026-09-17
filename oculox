@@ -53,6 +53,16 @@ Exploitation :
   ./oculox validate
   ./oculox collector-bundle <nom-collecteur> <nom-DNS-ou-IP-principal> [sortie]
   ./oculox configure-opensearch-remote --bundle <répertoire-bundle>
+  ./oculox keycloak provision [--admin-username <nom>]
+  ./oculox keycloak activate-portal
+  ./oculox keycloak activate-dashboards
+  ./oculox keycloak deactivate-portal
+  ./oculox keycloak deactivate-dashboards
+  ./oculox keycloak verify-portal
+  ./oculox keycloak verify-dashboards
+  ./oculox keycloak verify-hardening
+  ./oculox keycloak credentials
+  ./oculox keycloak report
   ./oculox verify clients
   ./oculox verify ingestion baseline --output <rapport-core.json>
   ./oculox verify ingestion inject --pcap <fichier.pcap> \
@@ -247,6 +257,158 @@ prepare_role() {
     printf 'Préparation %s terminée.\n' "$ROLE"
 }
 
+keycloak_provision() {
+    local admin_username="oculox-initial-admin"
+    while (($#)); do
+        case "$1" in
+            --admin-username) shift; admin_username="${1:-}" ;;
+            *) printf 'Option Keycloak inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
+        esac
+        shift
+    done
+    read_state
+    [[ "$OCULOX_ROLE" == principal ]] || {
+        printf '%s\n' 'Le provisionnement Keycloak est disponible uniquement sur Oculox Core.' >&2
+        exit 1
+    }
+    ./dev/scripts/keycloak/configure-realm.py prepare --admin-username "$admin_username"
+    compose --profile "$PROFILE" up -d --force-recreate keycloak
+    local attempt keycloak_ready=false
+    for attempt in $(seq 1 30); do
+        if compose --profile "$PROFILE" exec -T keycloak \
+            curl -sSf --output /dev/null http://localhost:8080/keycloak/realms/master; then
+            keycloak_ready=true
+            break
+        fi
+        sleep 2
+    done
+    [[ "$keycloak_ready" == true ]] || {
+        printf '%s\n' 'Keycloak ne répond pas après 60 secondes.' >&2
+        exit 1
+    }
+    if ! compose --profile "$PROFILE" exec -T keycloak /usr/local/bin/realm-setup.sh --check-access; then
+        printf '%s\n' 'Création contrôlée du compte de service Keycloak de récupération...'
+        compose --profile "$PROFILE" stop keycloak
+        compose --profile "$PROFILE" run --rm --no-deps --entrypoint /bin/sh keycloak -c \
+            'unset KC_BOOTSTRAP_ADMIN_USERNAME KC_BOOTSTRAP_ADMIN_PASSWORD; export KC_DB=postgres KC_DB_USERNAME="$POSTGRES_KEYCLOAK_USER" KC_DB_PASSWORD="$POSTGRES_KEYCLOAK_PASSWORD" KC_DB_URL="jdbc:postgresql://${POSTGRES_HOST}:${PGPORT}/${POSTGRES_KEYCLOAK_DB}"; exec /opt/keycloak/bin/kc.sh bootstrap-admin service --no-prompt --client-id "$KEYCLOAK_RECOVERY_CLIENT_ID" --client-secret:env KEYCLOAK_RECOVERY_CLIENT_SECRET'
+        compose --profile "$PROFILE" up -d --force-recreate keycloak
+        keycloak_ready=false
+        for attempt in $(seq 1 30); do
+            if compose --profile "$PROFILE" exec -T keycloak \
+                curl -sSf --output /dev/null http://localhost:8080/keycloak/realms/master; then
+                keycloak_ready=true
+                break
+            fi
+            sleep 2
+        done
+        [[ "$keycloak_ready" == true ]] || {
+            printf '%s\n' 'Keycloak ne répond pas après la récupération du bootstrap.' >&2
+            exit 1
+        }
+        compose --profile "$PROFILE" exec -T keycloak /usr/local/bin/realm-setup.sh --check-access
+    fi
+    compose --profile "$PROFILE" exec -T keycloak /usr/local/bin/hardening-preflight.sh
+    compose --profile "$PROFILE" exec -T keycloak /usr/local/bin/realm-setup.sh
+    install -d -m 0700 "$PROJECT_DIR/dev/generated/keycloak-provisioning"
+    compose --profile "$PROFILE" exec -T keycloak /usr/local/bin/realm-setup.sh --verify \
+        > "$PROJECT_DIR/dev/generated/keycloak-provisioning/realm-report.json"
+    jq -e '.result == "PASS"' "$PROJECT_DIR/dev/generated/keycloak-provisioning/realm-report.json" >/dev/null
+    compose --profile "$PROFILE" exec -T keycloak /usr/local/bin/realm-setup.sh --retire-bootstrap
+    ./dev/scripts/keycloak/configure-realm.py finalize
+    compose --profile "$PROFILE" up -d --force-recreate keycloak
+    if sed -n 's/^NGINX_AUTH_MODE=//p' "$PROJECT_DIR/config/auth-common.env" | grep -qx keycloak; then
+        printf '%s\n' 'Keycloak realm, clients, groupes et rôles sont provisionnés. Le portail reste en mode Keycloak.'
+    else
+        printf '%s\n' 'Keycloak realm, clients, groupes et rôles sont provisionnés. Le portail reste en mode Basic.'
+    fi
+}
+
+keycloak_command() {
+    case "${1:-}" in
+        provision)
+            shift
+            keycloak_provision "$@"
+            ;;
+        activate-portal)
+            shift
+            read_state
+            [[ "$OCULOX_ROLE" == principal ]] || {
+                printf '%s\n' 'L’activation Keycloak du portail est disponible uniquement sur Oculox Core.' >&2
+                exit 1
+            }
+            ./dev/scripts/keycloak/configure-portal-auth.py activate "$@"
+            render_runtime_compose
+            docker compose -f "$RUNTIME_COMPOSE_FILE" --profile "$PROFILE" config --quiet
+            printf '%s\n' 'Portail Oculox configuré pour Keycloak. Redémarrez avec ./oculox restart nginx-proxy keycloak.'
+            ;;
+        activate-dashboards)
+            shift
+            read_state
+            [[ "$OCULOX_ROLE" == principal ]] || {
+                printf '%s\n' 'L’activation OIDC Dashboards est disponible uniquement sur Oculox Core.' >&2
+                exit 1
+            }
+            ./dev/scripts/keycloak/configure-dashboards-oidc.py activate "$@"
+            render_runtime_compose
+            docker compose -f "$RUNTIME_COMPOSE_FILE" --profile "$PROFILE" config --quiet
+            printf '%s\n' 'Dashboards configuré pour OIDC. Redémarrez avec ./oculox restart dashboards nginx-proxy.'
+            ;;
+        deactivate-portal)
+            shift
+            read_state
+            [[ "$OCULOX_ROLE" == principal ]] || {
+                printf '%s\n' 'La désactivation Keycloak du portail est disponible uniquement sur Oculox Core.' >&2
+                exit 1
+            }
+            ./dev/scripts/keycloak/configure-portal-auth.py deactivate "$@"
+            render_runtime_compose
+            docker compose -f "$RUNTIME_COMPOSE_FILE" --profile "$PROFILE" config --quiet
+            printf '%s\n' 'Portail Oculox revenu en Basic. Redémarrez avec ./oculox restart nginx-proxy.'
+            ;;
+        deactivate-dashboards)
+            shift
+            read_state
+            [[ "$OCULOX_ROLE" == principal ]] || {
+                printf '%s\n' 'La désactivation OIDC Dashboards est disponible uniquement sur Oculox Core.' >&2
+                exit 1
+            }
+            ./dev/scripts/keycloak/configure-dashboards-oidc.py deactivate "$@"
+            render_runtime_compose
+            docker compose -f "$RUNTIME_COMPOSE_FILE" --profile "$PROFILE" config --quiet
+            printf '%s\n' 'Dashboards revenu en Basic. Redémarrez avec ./oculox restart dashboards nginx-proxy.'
+            ;;
+        verify-portal)
+            shift
+            ./dev/scripts/keycloak/configure-portal-auth.py verify "$@"
+            ;;
+        verify-dashboards)
+            shift
+            ./dev/scripts/keycloak/configure-dashboards-oidc.py verify "$@"
+            ;;
+        verify-hardening)
+            shift
+            ./dev/scripts/keycloak/verify-functional-hardening.py "$@"
+            ;;
+        credentials)
+            local credentials_file="$PROJECT_DIR/dev/generated/keycloak-initial-credentials.env"
+            [[ -s "$credentials_file" ]] || {
+                printf '%s\n' 'Aucun fichier d’identifiants initiaux Keycloak n’est disponible.' >&2
+                exit 1
+            }
+            cat "$credentials_file"
+            ;;
+        report)
+            local report_file="$PROJECT_DIR/dev/generated/keycloak-provisioning/realm-report.json"
+            [[ -s "$report_file" ]] || {
+                printf '%s\n' 'Aucun rapport de provisionnement Keycloak n’est disponible.' >&2
+                exit 1
+            }
+            jq . "$report_file"
+            ;;
+        *) usage; exit 2 ;;
+    esac
+}
+
 resume_command() {
     local -a command=("$PROJECT_DIR/oculox" resume-install "$ROLE")
     if [[ "$ROLE" == principal ]]; then
@@ -416,6 +578,9 @@ case "$COMMAND" in
         ;;
     cluster)
         ./dev/scripts/opensearch-cluster/manage-cluster.sh "$@"
+        ;;
+    keycloak)
+        keycloak_command "$@"
         ;;
     verify)
         case "${1:-}" in

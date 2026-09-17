@@ -2,7 +2,12 @@
 
 set -euo pipefail
 
-if [[ "${NGINX_AUTH_MODE:-basic}" == "keycloak" ]]; then
+keycloak_requested() {
+  [[ "${NGINX_AUTH_MODE:-basic}" == "keycloak" ]] || \
+    [[ "${KEYCLOAK_PROVISIONING_ENABLED:-false}" == "true" ]]
+}
+
+if keycloak_requested; then
   /usr/local/bin/hardening-preflight.sh
 
   POSTGRES_HOST=${POSTGRES_HOST:-postgres}
@@ -29,10 +34,6 @@ if [[ "${NGINX_AUTH_MODE:-basic}" == "keycloak" ]]; then
     sleep 5
   done
   echo "PostgreSQL is up and ready at ${KC_DB_URL}!"
-fi
-
-if [[ -x /usr/local/bin/realm-setup.sh ]]; then
-  setsid /usr/local/bin/realm-setup.sh </dev/null &
 fi
 
 exec "$@"

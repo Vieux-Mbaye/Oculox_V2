@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-if [[ "${NGINX_AUTH_MODE:-basic}" != "keycloak" ]]; then
+if [[ "${NGINX_AUTH_MODE:-basic}" != "keycloak" ]] && \
+   [[ "${KEYCLOAK_PROVISIONING_ENABLED:-false}" != "true" ]]; then
   exit 0
 fi
 
@@ -23,12 +24,18 @@ is_positive_integer() {
 [[ -n "${KC_HOSTNAME:-}" ]] || fail "KC_HOSTNAME is required"
 [[ "${KC_HOSTNAME%/}" == "${KEYCLOAK_AUTH_URL%/}" ]] || fail "KC_HOSTNAME must match KEYCLOAK_AUTH_URL"
 [[ "${KC_HOSTNAME_STRICT:-false}" == "true" ]] || fail "KC_HOSTNAME_STRICT must be true"
+[[ "${KC_HOSTNAME_BACKCHANNEL_DYNAMIC:-false}" == "true" ]] || fail "KC_HOSTNAME_BACKCHANNEL_DYNAMIC must be true"
 [[ "${KC_PROXY_HEADERS:-}" == "xforwarded" ]] || fail "KC_PROXY_HEADERS must be xforwarded behind the Oculox proxy"
 [[ "${KEYCLOAK_SSL_VERIFY:-false}" == "true" ]] || fail "KEYCLOAK_SSL_VERIFY must be true"
+[[ "${KEYCLOAK_MFA_REQUIRED:-false}" == "true" ]] || fail "KEYCLOAK_MFA_REQUIRED must be true"
 
 [[ -n "${KEYCLOAK_CLIENT_ID:-}" ]] || fail "KEYCLOAK_CLIENT_ID is required"
 CLIENT_SECRET="${KEYCLOAK_CLIENT_SECRET:-}"
 [[ ${#CLIENT_SECRET} -ge 32 ]] || fail "KEYCLOAK_CLIENT_SECRET must contain at least 32 characters"
+PORTAL_CLIENT_SECRET="${KEYCLOAK_PORTAL_CLIENT_SECRET:-}"
+DASHBOARDS_CLIENT_SECRET="${KEYCLOAK_DASHBOARDS_CLIENT_SECRET:-}"
+[[ ${#PORTAL_CLIENT_SECRET} -ge 32 ]] || fail "KEYCLOAK_PORTAL_CLIENT_SECRET must contain at least 32 characters"
+[[ ${#DASHBOARDS_CLIENT_SECRET} -ge 32 ]] || fail "KEYCLOAK_DASHBOARDS_CLIENT_SECRET must contain at least 32 characters"
 [[ -n "${KEYCLOAK_AUTH_REDIRECT_URI:-}" ]] || fail "KEYCLOAK_AUTH_REDIRECT_URI is required"
 [[ "${KEYCLOAK_AUTH_REDIRECT_URI}" != *'*'* ]] || fail "wildcards are forbidden in redirect URIs"
 if [[ "${KEYCLOAK_AUTH_REDIRECT_URI}" != /* && "${KEYCLOAK_AUTH_REDIRECT_URI}" != https://* ]]; then
@@ -38,6 +45,10 @@ if [[ "${KEYCLOAK_AUTH_REDIRECT_URI}" == https://* ]]; then
   PUBLIC_ORIGIN="${KEYCLOAK_AUTH_URL%${KC_HTTP_RELATIVE_PATH:-/keycloak}}"
   [[ "${KEYCLOAK_AUTH_REDIRECT_URI}" == "${PUBLIC_ORIGIN%/}"/* ]] || \
     fail "the redirect URI must use the Oculox public origin"
+fi
+if [[ -n "${KEYCLOAK_DASHBOARDS_REDIRECT_URI:-}" ]]; then
+  [[ "${KEYCLOAK_DASHBOARDS_REDIRECT_URI}" == https://* ]] || fail "KEYCLOAK_DASHBOARDS_REDIRECT_URI must be an exact HTTPS URI"
+  [[ "${KEYCLOAK_DASHBOARDS_REDIRECT_URI}" != *'*'* ]] || fail "wildcards are forbidden in redirect URIs"
 fi
 
 [[ "${ROLE_BASED_ACCESS:-false}" == "true" ]] || fail "ROLE_BASED_ACCESS must be true"

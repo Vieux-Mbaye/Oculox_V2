@@ -113,6 +113,7 @@ def main() -> None:
             fail(f"active TLS verification is incomplete for {node}")
     for required in (
         "monitor-uri /healthz",
+        "http-request redirect code 302 location /stats if { path -i / }",
         "nbsrv(opensearch_nodes) lt 1",
         "balance roundrobin",
         "http-check expect status 200",

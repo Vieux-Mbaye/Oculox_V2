@@ -125,7 +125,8 @@ if [[ "$DISABLED" == "0" ]] && [[ -n "$SERVICE" ]]; then
        [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" != "opensearch-remote" ]]; then
         DISABLED=1
     fi
-    if [[ "$SERVICE" == "keycloak" ]] && [[ "${NGINX_AUTH_MODE:-keycloak}" != "keycloak" ]]; then
+    if [[ "$SERVICE" == "keycloak" ]] && [[ "${NGINX_AUTH_MODE:-keycloak}" != "keycloak" ]] && \
+       [[ "${KEYCLOAK_PROVISIONING_ENABLED:-false}" != "true" ]]; then
         DISABLED=1
     fi
     if [[ "$SERVICE" == "netbox" ]] && [[ "${NETBOX_MODE:-local}" != "local" ]]; then
@@ -223,4 +224,3 @@ else
     # the service isn't disabled, just play the song, Schneebly!
     exec "$@"
 fi
-

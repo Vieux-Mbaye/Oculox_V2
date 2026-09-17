@@ -142,6 +142,8 @@ services:
     - ./config/process.env
     - ./config/ssl.env
     - ./config/opensearch.env
+    - ./config/dashboards.env
+    - ./config/keycloak.env
     depends_on:
     - opensearch
     - dashboards-helper

@@ -75,8 +75,15 @@ def run(*command: str) -> subprocess.CompletedProcess[str]:
 
 def container_for(service: str) -> str | None:
     result = run(
-        "docker", "ps", "-a", "--filter",
-        f"label=com.docker.compose.service={service}", "--format", "{{.Names}}",
+        "docker",
+        "ps",
+        "-a",
+        "--filter",
+        "label=com.docker.compose.project=oculox",
+        "--filter",
+        f"label=com.docker.compose.service={service}",
+        "--format",
+        "{{.Names}}",
     )
     names = [line for line in result.stdout.splitlines() if line]
     return names[0] if len(names) == 1 else None

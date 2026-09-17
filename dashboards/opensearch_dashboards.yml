@@ -27,7 +27,7 @@ opensearch:
 
 opensearch_security:
   auth:
-    type: "basicauth"
+    type: "_MALCOLM_DASHBOARDS_AUTH_TYPE_"
   cookie:
     name: "oculox_security_authentication"
     password: "_MALCOLM_DASHBOARDS_COOKIE_PASSWORD_"

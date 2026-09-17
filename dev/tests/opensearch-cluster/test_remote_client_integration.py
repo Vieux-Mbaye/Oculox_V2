@@ -130,6 +130,7 @@ def main() -> None:
     assert "insecure" in importer
     nginx_entrypoint = NGINX_ENTRYPOINT.read_text(encoding="utf-8")
     assert '"${OPENSEARCH_PRIMARY}" == "opensearch-remote"' in nginx_entrypoint
+    assert '"${DASHBOARDS_AUTH_TYPE:-}" == "openid"' in nginx_entrypoint
     assert 'ln -sf "$NGINX_DASHBOARDS_UPSTREAM_CONF" "$NGINX_DASHBOARDS_UPSTREAM_LINK"' in nginx_entrypoint
     dashboards_rewrite = NGINX_DASHBOARDS_REWRITE.read_text(encoding="utf-8")
     assert "include /etc/nginx/nginx_auth_rt.conf;" in dashboards_rewrite
@@ -137,10 +138,12 @@ def main() -> None:
     assert "return 302 https://$host:5601$request_uri;" in remote_basic_rewrite
     remote_server = NGINX_DASHBOARDS_REMOTE_SERVER.read_text(encoding="utf-8")
     assert "listen 5601 ssl;" in remote_server
+    assert "location = /dashboards/auth/openid/captureUrlFragment" in remote_server
+    assert "return 302 /dashboards/auth/openid/login?redirectHash=false&nextUrl=$arg_nextUrl;" in remote_server
     assert 'proxy_set_header Authorization $http_authorization;' in remote_server
     assert 'proxy_set_header Authorization "";' not in remote_server
     dashboards_config = yaml.safe_load(DASHBOARDS_CONFIG.read_text(encoding="utf-8"))
-    assert dashboards_config["opensearch_security"]["auth"]["type"] == "basicauth"
+    assert dashboards_config["opensearch_security"]["auth"]["type"] == "_MALCOLM_DASHBOARDS_AUTH_TYPE_"
     assert "multiple_auth_enabled" not in dashboards_config["opensearch_security"]["auth"]
     assert "proxycache" not in dashboards_config["opensearch_security"]
     dashboards_cookie = dashboards_config["opensearch_security"]["cookie"]

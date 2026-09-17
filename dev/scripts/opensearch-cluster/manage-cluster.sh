@@ -11,6 +11,7 @@ ENV_FILE="$GENERATED_DIR/cluster.env"
 CONFIG_FILE="$GENERATED_DIR/cluster.yml"
 PKI_DIR="$GENERATED_DIR/pki"
 SECURITY_DIR="$GENERATED_DIR/security"
+IDP_TRUST_DIR="$GENERATED_DIR/idp-trust"
 STATE_DIR="$GENERATED_DIR/state"
 ACCOUNTS_ENV="$SECURITY_DIR/accounts.env"
 CA_FILE="$PKI_DIR/client-trust/oculox-opensearch-ca.crt"
@@ -31,6 +32,7 @@ Gestion du cluster OpenSearch Oculox
   ./oculox cluster validate
   ./oculox cluster config
   ./oculox cluster apply --config <cluster.yml>
+  ./oculox cluster configure-oidc --keycloak-auth-url <URL> [--realm oculox] [--keycloak-ca <ca.crt>]
   ./oculox cluster client-bundle core <sortie>
   ./oculox cluster client-bundle hedgehog <sortie>
 
@@ -133,6 +135,10 @@ wait_for_cluster_green() {
   done
   printf 'Le cluster n’est pas revenu à green avec trois nœuds.\n' >&2
   exit 1
+}
+
+recreate_endpoint() {
+  compose up -d --no-deps --force-recreate opensearch-endpoint
 }
 
 check_host_capacity() {
@@ -240,6 +246,59 @@ apply_cluster_config() {
   printf '%s\n' 'Configuration du cluster appliquée.'
 }
 
+configure_oidc() {
+  local keycloak_auth_url="" realm="oculox" client_id="oculox-dashboards" keycloak_ca="" idp_ca_path=""
+  shift
+  while (($#)); do
+    case "$1" in
+      --keycloak-auth-url) shift; keycloak_auth_url="${1:-}" ;;
+      --realm) shift; realm="${1:-}" ;;
+      --client-id) shift; client_id="${1:-}" ;;
+      --keycloak-ca) shift; keycloak_ca="${1:-}" ;;
+      *) printf 'Option inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
+    esac
+    shift
+  done
+  [[ -n "$keycloak_auth_url" ]] || {
+    printf '%s\n' './oculox cluster configure-oidc exige --keycloak-auth-url <URL>.' >&2
+    exit 2
+  }
+  require_runtime_state
+  ensure_docker_access
+  if [[ -n "$keycloak_ca" ]]; then
+    [[ -f "$keycloak_ca" ]] || {
+      printf 'CA Keycloak introuvable : %s\n' "$keycloak_ca" >&2
+      exit 2
+    }
+    install -d -m 0755 "$IDP_TRUST_DIR"
+    install -m 0644 "$keycloak_ca" "$IDP_TRUST_DIR/keycloak-ca.crt"
+    idp_ca_path="/usr/share/opensearch/config/idp-trust/keycloak-ca.crt"
+    compose up -d --no-deps --force-recreate opensearch-1 opensearch-2 opensearch-3
+    recreate_endpoint
+    wait_for_nodes
+    wait_for_endpoint
+    wait_for_cluster_green
+  fi
+  local render_args=(
+    --source "$SECURITY_DIR/config"
+    --output "$SECURITY_DIR/oidc-config"
+    --keycloak-auth-url "$keycloak_auth_url"
+    --realm "$realm"
+    --client-id "$client_id"
+  )
+  [[ -z "$idp_ca_path" ]] || render_args+=(--idp-ca-path "$idp_ca_path")
+  "$SCRIPT_DIR/render-oidc-security-config.py" \
+    "${render_args[@]}"
+  "$SCRIPT_DIR/update-security-config.sh" \
+    --admin-dir "$PKI_DIR/admin" \
+    --security-dir "$SECURITY_DIR/oidc-config" \
+    --image "$(env_value OPENSEARCH_IMAGE)"
+  recreate_endpoint
+  wait_for_endpoint
+  wait_for_cluster_green
+  printf '%s\n' 'OpenSearch Security configuré pour OIDC + Basic technique.'
+}
+
 install_cluster() {
   local endpoint_ip="" heap="" config_path="" check_only=false
   local candidate_dir candidate_env candidate_config configured_ip configured_port monitoring_port profile
@@ -302,6 +361,7 @@ install_cluster() {
   ensure_docker_access
 
   install -d -m 0700 "$GENERATED_DIR"
+  install -d -m 0755 "$IDP_TRUST_DIR"
   install -m 0600 "$candidate_env" "$ENV_FILE"
   install -m 0600 "$candidate_config" "$CONFIG_FILE"
 
@@ -319,7 +379,7 @@ install_cluster() {
     compose_bootstrap up -d opensearch-1 opensearch-2 opensearch-3
     wait_for_nodes
     "$SCRIPT_DIR/initialize-security.sh" --admin-dir "$PKI_DIR/admin"
-    compose up -d --no-deps opensearch-endpoint
+    recreate_endpoint
     wait_for_endpoint
     for node in opensearch-1 opensearch-2 opensearch-3; do
       compose up -d --no-deps --force-recreate "$node"
@@ -328,6 +388,7 @@ install_cluster() {
   fi
 
   compose up -d
+  recreate_endpoint
   wait_for_endpoint
   wait_for_cluster_green
   "$SCRIPT_DIR/apply-storage-policy.py" --env-file "$ENV_FILE"
@@ -343,7 +404,7 @@ case "$COMMAND" in
     install_cluster "$@"
     ;;
   start)
-    require_runtime_state; ensure_docker_access; compose up -d; wait_for_endpoint; wait_for_cluster_green; compose ps
+    require_runtime_state; ensure_docker_access; compose up -d; recreate_endpoint; wait_for_endpoint; wait_for_cluster_green; compose ps
     ;;
   stop)
     require_runtime_state; ensure_docker_access; compose down
@@ -373,6 +434,9 @@ case "$COMMAND" in
     ;;
   apply)
     apply_cluster_config "$@"
+    ;;
+  configure-oidc)
+    configure_oidc "$@"
     ;;
   client-bundle)
     require_runtime_state
