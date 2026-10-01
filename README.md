@@ -103,20 +103,67 @@ droits necessaires a son role.
 
 ## Ordre D'Installation Sur VM Neuves
 
-L'ordre recommande est :
+**Etat au 30 septembre 2026 : le parcours EJBCA multi-VM est implemente,
+mais il n'a pas encore ete valide depuis trois VM vierges.** La reference
+operative est [installation trois VM et bundles](dev/ejbca/docs/installation_3_vm_et_bundles.md).
+Les corrections et preuves de test sont dans le
+[rapport de livraison EJBCA](dev/ejbca/docs/livraison_ejbca_2026-09-30.md).
+Les exemples ci-dessous ne remplacent pas ses controles ni ses etapes de
+confiance initiale. Ne pas publier ce deploiement comme qualifie en production
+avant l'essai complet sur les trois VM.
+
+L'ordre cible recommande avec EJBCA est :
 
 ```text
-1. Installer le cluster OpenSearch sur sa VM dediee.
-2. Creer le bundle OpenSearch reserve au Core.
-3. Installer le Core avec ce bundle.
-4. Valider Keycloak, Dashboards, Logstash et les clients OpenSearch.
-5. Creer un bundle collecteur par gare.
-6. Installer un collector/Hedgehog par gare.
-7. Valider l'ingestion de bout en bout.
+1. Installer le Core minimal et EJBCA sur la VM Core.
+2. Creer les CA et profils EJBCA Oculox.
+3. Configurer l'API HTTPS EJBCA et emettre les certificats Core.
+4. Enroler un agent Cluster par CSR locale et bundle public authentifie.
+5. Installer le cluster OpenSearch avec des certificats emis par EJBCA.
+6. Creer le bundle OpenSearch reserve au Core.
+7. Finaliser le Core avec ce bundle ; valider Keycloak, Dashboards et ingestion.
+8. Enroler un agent Collecteur puis son certificat Filebeat sur sa VM.
+9. Installer le Collecteur et valider l'ingestion de bout en bout.
 ```
 
-Cette separation est importante : le Core doit connaitre l'endpoint et la CA du
-cluster OpenSearch avant de demarrer Dashboards, Logstash, Arkime et l'API.
+Cette separation est importante : EJBCA est la source de certificats, puis le
+Core doit connaitre l'endpoint et la CA du cluster OpenSearch avant de demarrer
+Dashboards, Logstash, Arkime et l'API.
+
+Dans le deploiement actuel, EJBCA est installe sur la VM Core. Les certificats
+emis localement ne prouvent pas la migration du cluster distant : verifier
+l'issuer du certificat presente par l'endpoint reel. Une connexion par IP
+necessite une reemission si l'IP change; un DNS stable dans les SAN permet de
+changer l'IP via DNS sans reemettre pour ce seul changement.
+
+### Premiere Etape Obligatoire : Core Et EJBCA
+
+Sur la VM Core :
+
+```bash
+cd ~/Oculox_V2
+./oculox bootstrap principal --server-name <DNS_OU_IP_CORE>
+./oculox pki-ca init
+./oculox pki-ca start
+./oculox pki-ca create-ca-plan
+./oculox pki-ca provision-profiles
+./oculox pki-ca harden
+./oculox pki-ca verify-hardening
+./oculox pki-ca configure-api --public-host <DNS_OU_IP_CORE> --bind-address <IP_LOCALE_CORE>
+./oculox pki-ca provision-profiles --verify-only
+./oculox pki enroll --provider ejbca --service web_ca --install
+./oculox pki enroll --provider ejbca --service ingestion_ca --install
+./oculox pki enroll --provider ejbca --service web_server --install
+./oculox pki enroll --provider ejbca --service logstash_server --install
+./oculox pki enroll --provider ejbca --service filebeat_client --install
+./oculox pki status
+```
+
+`bootstrap` ne demarre pas le Core : il cree la configuration necessaire pour
+que les SAN des certificats reprennent l'IP ou le DNS choisi. Les commandes
+suivantes installent EJBCA et les certificats actifs du Core. Keycloak n'a pas d'HTTPS direct
+separe dans l'architecture actuelle : son acces public HTTPS passe par Nginx,
+donc il est couvert par le certificat Web Nginx emis par EJBCA.
 
 ## Installation Du Cluster OpenSearch
 
@@ -124,6 +171,10 @@ Sur la VM cluster :
 
 ```bash
 cd ~/Oculox_V2
+./oculox pki agent-init --role cluster --identity cluster-01
+# Sur Core, autoriser la CSR publique avec ./oculox pki-ca authorize-agent.
+# Revenir ici avec le bundle public et l'empreinte Root CA verifiee.
+./oculox pki agent-install --bundle ~/cluster-01-enrollment --root-sha256 <EMPREINTE>
 cp dev/config/opensearch-cluster/cluster.yml.example ~/oculox-cluster.yml
 nano ~/oculox-cluster.yml
 ./oculox install cluster --config ~/oculox-cluster.yml --check
@@ -137,8 +188,22 @@ Arguments :
   watermarks, les politiques de stockage et les ports exposes ;
 - `--check` valide la configuration et le Compose rendu sans demarrer le
   cluster ;
-- le script genere la PKI, rend les fichiers Compose, demarre les trois noeuds,
-  initialise OpenSearch Security et publie l'endpoint HTTPS.
+- le script enrole la PKI OpenSearch via EJBCA, rend les fichiers Compose,
+  demarre les trois noeuds, initialise OpenSearch Security et publie l'endpoint
+  HTTPS.
+
+La PKI OpenSearch comprend :
+
+- la CA `Oculox OpenSearch CA`, geree par EJBCA ;
+- un certificat par noeud OpenSearch ;
+- un certificat endpoint HAProxy/OpenSearch ;
+- un certificat administrateur OpenSearch ;
+- les bundles de confiance utilises par Dashboards, Logstash, Arkime et les
+  clients internes.
+
+Le script d'installation du cluster n'utilise plus le generateur OpenSSL local.
+Il appelle `./oculox pki request` via l'agent mTLS pour les entrees
+`opensearch_*` du manifeste. Les cles sont generees sur la VM Cluster.
 
 Pour un laboratoire rapide, `./oculox install cluster --endpoint-ip
 <IP_CLUSTER>` reste accepte. Pour une installation partagee ou reproductible,
@@ -171,6 +236,11 @@ cd ~/oculox-bundles/core
 sha256sum -c SHA256SUMS
 ```
 
+Ce bundle contient des mots de passe dans les fichiers `.curlrc`, la CA publique,
+l'URL et les parametres de stockage dans `bundle.env`, ainsi que `SHA256SUMS`.
+Il ne contient ni cle de CA ni certificat administrateur OpenSearch. Il transporte
+la configuration cliente, meme lorsque les certificats sont emis par EJBCA.
+
 Ce bundle contient la CA OpenSearch et les identites techniques necessaires au
 Core. Il contient des secrets et ne doit jamais etre ajoute a Git.
 
@@ -188,14 +258,33 @@ cd ~/oculox-bundles/core
 sha256sum -c SHA256SUMS
 
 cd ~/Oculox_V2
-./oculox install principal \
+./oculox resume-install principal \
   --server-name <IP_CORE_OU_DNS> \
   --opensearch-bundle ~/oculox-bundles/core
+./oculox keycloak provision --admin-username <ADMIN_KEYCLOAK>
+./oculox keycloak activate-portal
+./oculox keycloak activate-dashboards
+./oculox restart keycloak nginx-proxy dashboards
 ```
+
+Apres demarrage et provisionnement Keycloak, **sur la VM Cluster** :
+
+```bash
+./oculox cluster configure-oidc --keycloak-auth-url https://<IP_CORE_OU_DNS>/keycloak
+./oculox cluster verify-oidc
+```
+
+La confiance Keycloak utilise la chaine **Web EJBCA** du bundle public de
+l'agent, pas la CA OpenSearch. Pour une ancienne confiance deja configuree,
+`./oculox cluster oidc-trust` recharge les noeuds un par un sans reecrire les
+roles. Sur Core, `python3 dev/tests/keycloak/test_live_opensearch_oidc.py
+--run-live` teste les jetons signes et les mappings lecture/admin avec un
+client temporaire supprime en fin de test. Terminer par une connexion humaine
+Dashboards; une redirection HTTP seule ne valide pas OIDC.
 
 Arguments :
 
-- `install principal` installe le Core Oculox ;
+- `resume-install principal` termine l'installation du Core Oculox apres `bootstrap` ;
 - `--server-name` declare le nom ou l'IP publique du Core. Cette valeur sert aux
   certificats Web, aux URLs Keycloak et aux redirect URIs OIDC ;
 - `--opensearch-bundle` importe la CA et les comptes de service du cluster
@@ -207,10 +296,21 @@ Valider :
 ./oculox status
 ./oculox keycloak verify-hardening
 ./oculox verify clients
+./oculox host-telemetry verify
+./oculox host-telemetry status
 curl --cacert nginx/ca-trust/oculox-opensearch-ca.crt \
   --config .opensearch.primary.curlrc \
   https://<IP_CLUSTER>:9200/_cluster/health?pretty
 ```
+
+La commande `install principal` active aussi la telemetrie hote par defaut :
+logs Nginx, syslog TCP/UDP local sur `5514`, et services Fluent Bit utilisateur
+pour `cpu`, `mem`, `df`, `disk`, `network`, `systemd`, `kmsg`, `auditlog`,
+`aide` et `thermal`. Ces flux alimentent les dashboards "Malcolm and
+Third-Party Logs". Le port Filebeat dedie est `5055`, reserve aux logs hote, ce
+qui evite le conflit avec `5045` deja utilise par le second Logstash.
+Sur Debian/Ubuntu, `./oculox install` installe automatiquement les dependances
+OS necessaires : `fluent-bit`, `auditd`, `aide` et `jq`.
 
 ## Installation D'Un Collecteur Par Gare
 
@@ -220,6 +320,10 @@ Sur le Core, creer un bundle pour chaque collecteur :
 ./oculox collector-bundle <nom-collecteur> <IP_CORE_OU_DNS> \
   /tmp/oculox-collector-<nom-collecteur>
 ```
+
+Ce bundle contient uniquement la CA publique et les endpoints : le collecteur
+genere sa cle et sa CSR sur sa VM, puis demande son certificat Filebeat a
+EJBCA via un agent autorise. Voir la procedure d'enrolement dans la reference.
 
 Si le collecteur doit aussi parler directement au cluster OpenSearch pour
 Arkime, creer le bundle Hedgehog cote cluster :
@@ -232,6 +336,9 @@ Sur la VM collecteur :
 
 ```bash
 cd ~/Oculox_V2
+./oculox pki agent-init --role collector --identity <nom-collecteur>
+# Faire autoriser la CSR publique sur Core, puis transferer le bundle public.
+./oculox pki agent-install --bundle ~/collector-enrollment --root-sha256 <EMPREINTE>
 ./oculox install hedgehog \
   --principal-host <IP_CORE_OU_DNS> \
   --collector-name <nom-collecteur> \
@@ -244,7 +351,7 @@ Arguments :
 - `install hedgehog` installe le role collecteur ;
 - `--principal-host` indique le Core qui recevra les flux Beats ;
 - `--collector-name` identifie la gare ou le capteur ;
-- `--bundle` contient la CA et le certificat Beats du collecteur ;
+- `--bundle` contient la CA publique et les endpoints du collecteur ;
 - `--opensearch-bundle` contient les secrets OpenSearch limites au role
   Hedgehog lorsque necessaire.
 
@@ -261,7 +368,13 @@ d'appeler directement de nombreux scripts internes.
 Commandes principales :
 
 ```bash
-./oculox install principal --server-name <IP_CORE_OU_DNS> --opensearch-bundle <bundle>
+./oculox pki-ca init|start|create-ca-plan|harden|verify-hardening
+./oculox pki audit|status|expiry
+./oculox pki enroll --provider ejbca --service <entree> --install
+
+./oculox bootstrap principal --server-name <IP_CORE_OU_DNS>
+# Provisionner EJBCA et installer Cluster avant de finaliser Core (procedure ci-dessus).
+./oculox resume-install principal --server-name <IP_CORE_OU_DNS> --opensearch-bundle <bundle>
 ./oculox install hedgehog --principal-host <IP_CORE_OU_DNS> --collector-name <nom> --bundle <bundle>
 ./oculox install cluster --endpoint-ip <IP_CLUSTER>
 
@@ -276,6 +389,10 @@ Commandes principales :
 ./oculox keycloak provision
 ./oculox keycloak verify-hardening
 ./oculox keycloak credentials
+./oculox host-telemetry install-deps
+./oculox host-telemetry configure
+./oculox host-telemetry start
+./oculox host-telemetry status
 
 ./oculox configure-opensearch-remote --bundle <bundle-core>
 ./oculox verify clients
@@ -297,8 +414,10 @@ les fichiers generes dans `dev/generated/`.
 | `keycloak/scripts/realm-setup.sh` | Provisionnement realm, clients, groupes, roles et comptes |
 | `nginx/` | Reverse proxy, SSO portail, routage, headers et pages statiques |
 | `dashboards/` | Template OpenSearch Dashboards et entree OIDC |
+| `dev/ejbca/` | Plan CA, manifest PKI, Compose EJBCA et documentation PKI |
+| `dev/scripts/ejbca/` | Initialisation, durcissement et enrolement EJBCA |
 | `dev/scripts/keycloak/` | Activation, verification et durcissement Keycloak |
-| `dev/scripts/opensearch-cluster/` | Installation, PKI, security config et bundles cluster |
+| `dev/scripts/opensearch-cluster/` | Installation cluster, enrolement PKI EJBCA, security config et bundles cluster |
 | `dev/config/opensearch-cluster/` | Roles, mappings, HAProxy et templates du cluster |
 | `dev/tests/` | Tests de non-regression Keycloak, OpenSearch et Compose |
 | `dev/docs/` | Guides de conception, installation, dimensionnement et exploitation |
@@ -315,6 +434,9 @@ python3 -m unittest discover -s dev/tests/keycloak -p 'test_*.py'
 python3 -m unittest discover -s dev/tests/opensearch-cluster -p 'test_*.py'
 ./dev/tests/test-branding.sh
 ./oculox status
+./oculox pki-ca verify-hardening
+./oculox pki status
+./oculox pki expiry
 ./oculox keycloak verify-hardening
 ./oculox verify clients
 ```

@@ -24,7 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "heap_per_node": "2g",
         "restart_policy": "unless-stopped",
     },
-    "endpoint": {"ip": None, "port": 9200, "monitoring_port": 8404},
+    "endpoint": {"ip": None, "dns": None, "port": 9200, "monitoring_port": 8404},
     "storage": {
         "primary_shards": 1,
         "replicas": 1,
@@ -127,6 +127,19 @@ def validate(config: dict[str, Any]) -> None:
         raise ValueError("endpoint.ip must be a valid IP address") from error
     if address.version != 4 or address.is_unspecified or address.is_multicast:
         raise ValueError("endpoint.ip must be a usable IPv4 address")
+    dns = endpoint.get("dns")
+    if dns is not None:
+        if not isinstance(dns, str) or len(dns) > 253 or not all(
+            re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+            for label in dns.split(".")
+        ):
+            raise ValueError("endpoint.dns must be a valid DNS hostname")
+        try:
+            ipaddress.ip_address(dns)
+        except ValueError:
+            pass
+        else:
+            raise ValueError("endpoint.dns must be a hostname, not an IP address")
     integer(endpoint["port"], "endpoint.port", 1, 65535)
     integer(endpoint["monitoring_port"], "endpoint.monitoring_port", 1, 65535)
     if endpoint["port"] == endpoint["monitoring_port"]:
@@ -192,7 +205,8 @@ def render_env(
         "OPENSEARCH_INITIAL_CLUSTER_MANAGER_NODES": "opensearch-1,opensearch-2,opensearch-3",
         "OPENSEARCH_HEAP_SIZE": cluster["heap_per_node"],
         "OPENSEARCH_RESTART_POLICY": cluster["restart_policy"],
-        "OPENSEARCH_CLUSTER_ENDPOINT": f"https://{endpoint['ip']}:{endpoint['port']}",
+        "OPENSEARCH_CLUSTER_ENDPOINT": f"https://{endpoint.get('dns') or endpoint['ip']}:{endpoint['port']}",
+        "OPENSEARCH_ENDPOINT_DNS": endpoint.get("dns") or "",
         "OPENSEARCH_ENDPOINT_BIND_IP": endpoint["ip"],
         "OPENSEARCH_ENDPOINT_PORT": endpoint["port"],
         "OPENSEARCH_MONITORING_PORT": endpoint["monitoring_port"],

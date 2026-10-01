@@ -1,0 +1,73 @@
+name: oculox-ejbca
+
+services:
+  ejbca-db:
+    image: ${OCULOX_EJBCA_DB_IMAGE:-mariadb:10.11}
+    container_name: oculox-ejbca-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${EJBCA_DATABASE_NAME:-ejbca}
+      MYSQL_USER: ${EJBCA_DATABASE_USER:-ejbca}
+      MYSQL_PASSWORD: ${EJBCA_DATABASE_PASSWORD:?EJBCA_DATABASE_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${EJBCA_DATABASE_ROOT_PASSWORD:?EJBCA_DATABASE_ROOT_PASSWORD is required}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=200
+    volumes:
+      - ejbca-db-data:/var/lib/mysql
+    networks:
+      - ejbca
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mariadb-admin ping -h 127.0.0.1 -u"$${MYSQL_USER}" -p"$${MYSQL_PASSWORD}" --silent
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    mem_limit: ${OCULOX_EJBCA_DB_MEMORY_LIMIT:-1g}
+
+  ejbca:
+    image: ${OCULOX_EJBCA_IMAGE:-keyfactor/ejbca-ce@sha256:ef574ed81c1e2bb335902f1097b09f9408fe32f2c3abbccfe80999d1c9b50164}
+    container_name: oculox-ejbca
+    hostname: ${OCULOX_EJBCA_HOSTNAME:-oculox-ejbca.local}
+    restart: unless-stopped
+    depends_on:
+      ejbca-db:
+        condition: service_healthy
+    environment:
+      TLS_SETUP_ENABLED: ${TLS_SETUP_ENABLED:-simple}
+      DATABASE_JDBC_URL: jdbc:mariadb://ejbca-db:3306/${EJBCA_DATABASE_NAME:-ejbca}?characterEncoding=UTF-8
+      DATABASE_USER: ${EJBCA_DATABASE_USER:-ejbca}
+      DATABASE_PASSWORD: ${EJBCA_DATABASE_PASSWORD:?EJBCA_DATABASE_PASSWORD is required}
+    ports:
+      - 127.0.0.1:${OCULOX_EJBCA_HTTP_PORT:-18080}:8080
+      - ${OCULOX_EJBCA_BIND_ADDRESS:-127.0.0.1}:${OCULOX_EJBCA_HTTPS_PORT:-18443}:8443
+    volumes:
+      - ejbca-app-data:/opt/keyfactor
+      - ejbca-external-secrets:/mnt/external/secrets
+    networks:
+      - ejbca
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -kfsS https://127.0.0.1:8443/ejbca/publicweb/healthcheck/ejbcahealth >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 180s
+    mem_limit: ${OCULOX_EJBCA_MEMORY_LIMIT:-2g}
+
+networks:
+  ejbca:
+    name: oculox-ejbca
+    driver: bridge
+
+volumes:
+  ejbca-db-data:
+    name: oculox-ejbca-db-data
+  ejbca-app-data:
+    name: oculox-ejbca-app-data
+  ejbca-external-secrets:
+    name: oculox-ejbca-external-secrets

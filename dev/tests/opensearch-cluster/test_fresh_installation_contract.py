@@ -33,6 +33,12 @@ def main() -> None:
     assert "create-client-bundle.py" in manager
     assert "client-bundles/$role" in manager
     assert "wait_for_cluster_green" in manager
+    assert 'remote-agent/api-ca.crt' in manager
+    assert 'oidc-trust.py" verify --if-configured' in manager
+    guide = (PROJECT_DIR / "dev/ejbca/docs/installation_3_vm_et_bundles.md").read_text()
+    for command in ("keycloak provision", "keycloak activate-dashboards", "cluster configure-oidc",
+                    "cluster verify-oidc", "test_live_opensearch_oidc.py --run-live"):
+        assert command in guide, command
     assert "down -v" not in manager
     assert "10.5.6.3" not in manager and "10.5.6.4" not in manager
 

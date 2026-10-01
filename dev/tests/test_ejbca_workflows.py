@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Regression tests for authenticated enrollment and repeatable PKI operations."""
+
+import argparse
+import copy
+import importlib.util
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def module(name, path):
+    spec = importlib.util.spec_from_file_location(name, ROOT / path)
+    loaded = importlib.util.module_from_spec(spec)
+    sys.modules[name] = loaded
+    spec.loader.exec_module(loaded)
+    return loaded
+
+
+REMOTE = module("test_remote_pki", "dev/scripts/ejbca/remote-enrollment.py")
+PROFILES = module("test_profiles_pki", "dev/scripts/ejbca/provision-profiles.py")
+ROTATION = module("test_rotation_pki", "dev/scripts/opensearch-cluster/migrate-ejbca.py")
+RENDER = module("test_dns_pki", "dev/scripts/opensearch-cluster/render-cluster-config.py")
+AUDIT = module("test_role_audit_pki", "dev/scripts/pki-audit.py")
+BACKUP = module("test_backup_pki", "dev/scripts/ejbca/backup-restore.py")
+
+
+class PinnedTrustTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory()
+        cls.base = Path(cls.temp.name)
+        for name in ("root", "foreign"):
+            subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                "-subj", f"/CN={name}", "-keyout", str(cls.base / f"{name}.key"), "-out", str(cls.base / f"{name}.crt"),
+                "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign"],
+                capture_output=True, check=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp.cleanup()
+
+    def bundle(self, path, foreign=False):
+        for name in ("root.crt", "agent-ca.crt", "api-ca.crt", "service-ca.crt"):
+            source = "foreign.crt" if foreign and name != "root.crt" else "root.crt"
+            (path / name).write_bytes((self.base / source).read_bytes())
+
+    def test_all_trust_bundles_must_chain_to_pinned_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            self.bundle(path)
+            REMOTE.verify_pinned_bundle(path, REMOTE.fingerprint(path / "root.crt"))
+            self.bundle(path, foreign=True)
+            with self.assertRaises(RuntimeError):
+                REMOTE.verify_pinned_bundle(path, REMOTE.fingerprint(path / "root.crt"))
+
+    def test_appended_foreign_anchor_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            self.bundle(path)
+            (path / "api-ca.crt").write_bytes((self.base / "root.crt").read_bytes() + (self.base / "foreign.crt").read_bytes())
+            with self.assertRaises(RuntimeError):
+                REMOTE.verify_pinned_bundle(path, REMOTE.fingerprint(path / "root.crt"))
+
+    def test_wrong_fingerprint_is_rejected(self):
+        with self.assertRaises(RuntimeError):
+            REMOTE.verify_pinned_bundle(self.base, "0" * 64)
+
+
+class EnrollmentPolicyTests(unittest.TestCase):
+    def test_agent_renewal_restores_previous_files_after_install_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, bundle = root / "state", root / "bundle"
+            state.mkdir()
+            bundle.mkdir()
+            config = {"role": "collector", "identity": "sensor-01", "allowed_services": ["filebeat_client"],
+                      "api_url": "https://core.example:18443/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll"}
+            for name in ("agent.crt", "agent-ca.crt", "api-ca.crt", "service-ca.crt", "root.crt"):
+                (state / name).write_text("old " + name)
+                (bundle / name).write_text("new " + name)
+            for path in (state / "config.json", bundle / "config.json"):
+                path.write_text(json.dumps(config))
+            for name in ("agent.key", "agent.csr", "pending.key", "pending.csr"):
+                (state / name).write_text(name)
+                (state / name).chmod(0o600)
+            original = {path.name: path.read_bytes() for path in state.iterdir()}
+            copy = shutil.copy2
+            failed = False
+
+            def fail_once(source, target):
+                nonlocal failed
+                if Path(source) == bundle / "api-ca.crt" and not failed:
+                    failed = True
+                    raise OSError("simulated full disk")
+                return copy(source, target)
+
+            def openssl(*args):
+                if "-subject" in args:
+                    return "subject=" + REMOTE.agent_dn("collector", "sensor-01")
+                return "public-key"
+
+            args = argparse.Namespace(bundle=bundle, root_sha256="0" * 64, renew=True)
+            with patch.object(REMOTE, "STATE", state), patch.object(REMOTE, "verify_pinned_bundle"), patch.object(REMOTE, "openssl", side_effect=openssl), patch.object(REMOTE.shutil, "copy2", side_effect=fail_once):
+                with self.assertRaises(OSError):
+                    REMOTE.install_agent(args)
+            self.assertEqual({name: (state / name).read_bytes() for name in original}, original)
+            self.assertEqual((state / "agent.key").stat().st_mode & 0o777, 0o600)
+
+    def test_restore_sql_quotes_identifiers_without_shell_substitution(self):
+        sql = BACKUP.reset_database_sql("ejbca")
+        self.assertIn("CREATE DATABASE `ejbca`", sql)
+        for name in ("$(id)", "bad`name", "db; DROP DATABASE other", ""):
+            with self.assertRaises(RuntimeError):
+                BACKUP.reset_database_sql(name)
+
+    def test_https_policy(self):
+        base = {"role": "collector", "identity": "sensor-01", "allowed_services": ["filebeat_client"],
+                "api_url": "https://core.example:18443/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll"}
+        REMOTE.validate_agent_config(base)
+        for url in ("http://core.example/enroll", "https://user:secret@core.example/enroll", "https://core.example/admin"):
+            with self.assertRaises(RuntimeError):
+                REMOTE.validate_agent_config({**base, "api_url": url})
+        with self.assertRaises(RuntimeError):
+            REMOTE.validate_agent_config({**base, "allowed_services": ["web_server"]})
+
+    def test_dns_separate_from_listener_ip(self):
+        config = copy.deepcopy(RENDER.DEFAULT_CONFIG)
+        config["endpoint"].update(ip="192.0.2.15", dns="search.client.example")
+        RENDER.validate(config)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cluster.env"
+            RENDER.render_env(config, path, 1000, 1000)
+            values = dict(line.split("=", 1) for line in path.read_text().splitlines())
+            self.assertEqual(values["OPENSEARCH_CLUSTER_ENDPOINT"], "https://search.client.example:9200")
+            self.assertEqual(values["OPENSEARCH_ENDPOINT_BIND_IP"], "192.0.2.15")
+        for dns in ("-invalid.example", "bad\nname.example", "192.0.2.16", "bad..example"):
+            config["endpoint"]["dns"] = dns
+            with self.assertRaises(ValueError):
+                RENDER.validate(config)
+
+    def test_core_audit_excludes_nonactive_cluster_files(self):
+        manifest = {"certificates": {"opensearch_node_1": {"zone": "opensearch"}, "filebeat_client": {}}}
+        with patch.object(AUDIT, "load_manifest", return_value=manifest), patch.object(AUDIT, "parse_env_value", return_value="principal"), patch.object(AUDIT, "audit_certificate") as audit, tempfile.TemporaryDirectory() as directory, patch.object(AUDIT, "PROJECT_DIR", Path(directory)):
+            AUDIT.audit_all(Path("unused"))
+            self.assertEqual(audit.call_count, 1)
+            self.assertEqual(audit.call_args.args[0], "filebeat_client")
+
+    def test_cluster_audit_does_not_require_core_certificates(self):
+        manifest = {"certificates": {"opensearch_node_1": {"zone": "opensearch"},
+                    "opensearch_remote_trust": {"zone": "opensearch"}, "web_server": {"zone": "web"}}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "dev/generated/opensearch-cluster/cluster.env"
+            config.parent.mkdir(parents=True)
+            config.touch()
+            with patch.object(AUDIT, "load_manifest", return_value=manifest), patch.object(AUDIT, "parse_env_value", return_value=None), patch.object(AUDIT, "audit_certificate") as audit, patch.object(AUDIT, "PROJECT_DIR", root):
+                AUDIT.audit_all(Path("unused"))
+            self.assertEqual(audit.call_count, 1)
+            self.assertEqual(audit.call_args.args[0], "opensearch_node_1")
+            self.assertTrue(audit.call_args.args[1]["required"])
+
+    def test_profile_parameter_drift_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            expected, actual = Path(directory) / "expected.xml", Path(directory) / "actual.xml"
+            settings = {"validity": "1y", "key_size": 3072, "extended_key_usage": ["serverAuth"],
+                        "key_usage": ["digitalSignature", "keyEncipherment"]}
+            PROFILES.render_certificate(PROFILES.PROFILES / "certificate-profile-template.xml", expected, 1234, settings)
+            actual.write_bytes(expected.read_bytes())
+            PROFILES.verify_profile(expected, actual, False)
+            actual.write_text(actual.read_text().replace("<string>1y</string>", "<string>10y</string>"))
+            with self.assertRaises(RuntimeError):
+                PROFILES.verify_profile(expected, actual, False)
+
+    def test_rotate_preflight_after_retire_does_not_replace_files(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(ROTATION, "GENERATED", Path(directory)), patch.object(ROTATION, "state_phase", return_value="retire"), patch.object(ROTATION, "run", return_value=""), patch.object(ROTATION, "compose"), patch.object(ROTATION, "verify_stages"), patch.object(ROTATION, "health"), patch.object(ROTATION, "snapshot") as backup, patch.object(ROTATION, "leaf_phase") as leaf, patch.object(sys, "argv", ["pki-migrate", "rotate", "--check"]):
+            ROTATION.main()
+            backup.assert_not_called()
+            leaf.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()

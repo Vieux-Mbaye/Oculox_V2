@@ -1,5 +1,9 @@
 # Étape PKI - PKI OpenSearch
 
+> Compte rendu historique de la PKI locale. Les CA, adresses et commandes
+> ci-dessous ne sont pas la procedure EJBCA cible. Consulter la
+> [reference revisee](../../ejbca/docs/installation_3_vm_et_bundles.md).
+
 ## 1. Objet
 
 Cette étape cree les identites cryptographiques requises avant le premier

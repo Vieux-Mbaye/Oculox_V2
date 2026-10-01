@@ -1,5 +1,14 @@
 # Installation Oculox sur trois VM neuves
 
+> Revision du 30 septembre 2026 : cette procedure conserve le parcours
+> historique, anterieur a EJBCA centralise. Son ordre Cluster puis Core et le
+> bundle collecteur signe localement ne sont pas la recette EJBCA actuelle.
+> La reference revisee est [Installation trois VM et bundles](../../ejbca/docs/installation_3_vm_et_bundles.md).
+> L'enrolement distant et les certificats collecteurs EJBCA sont desormais
+> implementes, mais une installation depuis trois VM vierges n'a pas encore ete
+> validee. Ne pas suivre les commandes historiques ci-dessous pour cette cible.
+> Les IP ci-dessous sont des exemples historiques.
+
 Ce guide installe une plateforme composee de trois roles distincts :
 
 ```text
@@ -377,6 +386,26 @@ ports du Core. Cela prouve que Filebeat répartit les publications sur les deux
 Logstash. Les certificats Beats sont vérifiés pendant cette connexion mTLS:
 le Core vérifie le certificat client du collecteur et le collecteur vérifie le
 certificat serveur du Core.
+
+### 5.5 Vérifier la télémétrie hôte
+
+Sur le Core comme sur un collecteur, Oculox installe par défaut les services
+de télémétrie hôte qui alimentent les dashboards système :
+
+```bash
+./oculox host-telemetry install-deps
+./oculox host-telemetry verify
+./oculox host-telemetry status
+```
+
+Cette étape est appelée automatiquement par `./oculox install` et
+`./oculox prepare`. La commande manuelle ci-dessus sert surtout à vérifier ou à
+réparer une VM déjà installée.
+
+Les services Fluent Bit envoient leurs événements vers Filebeat local sur
+`tcp://localhost:5055`. Le port `5045` reste réservé au second Logstash du
+Core. Les messages syslog externes peuvent être reçus sur `5514/tcp` et
+`5514/udp`.
 
 ## 6. Vérifier le parcours complet d'ingestion
 

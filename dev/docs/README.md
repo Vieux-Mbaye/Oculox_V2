@@ -12,6 +12,10 @@ Les études descriptives de l'existant restent dans `dev/phase1/`. Les documents
 
 ## Documents Disponibles
 
+La reference actualisee pour EJBCA, les limites multi-VM et les bundles est
+[Installation trois VM et bundles](../ejbca/docs/installation_3_vm_et_bundles.md).
+Les comptes rendus de phases conservent leur contexte historique.
+
 | Document | Rôle |
 |---|---|
 | `00_plan_directeur_developpement_resilient.md` | Feuille de route complète du projet |

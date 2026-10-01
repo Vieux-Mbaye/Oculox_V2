@@ -30,15 +30,20 @@ config.*/
 /valkey
 /postgres
 /filescan-logs
+/suricata-logs/
 malcolm-config_2*.json
 malcolm-config_2*.yaml
 
 # development
+/dev/docs/contexte_session_*.md
 .envrc
 .direnv
 .vagrant
 .fuse_*
 .venv
+dev/ejbca/generated/
+dev/ejbca/data/
+dev/ejbca/config/*.env
 shared/bin/malcolm_constants.py
 shared/bin/malcolm_utils.py
 malcolm_*images.tar.gz

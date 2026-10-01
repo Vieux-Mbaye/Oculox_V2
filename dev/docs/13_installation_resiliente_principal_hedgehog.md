@@ -1,5 +1,11 @@
 # Installation Résiliente Oculox Principal Et Hedgehog
 
+> Ce guide decrit le parcours historique avec generation PKI locale.
+> Pour EJBCA centralise, consulter la [reference revisee](../ejbca/docs/installation_3_vm_et_bundles.md).
+> Le bundle collecteur actuel ne contient plus de cle privee ni de certificat
+> client; les commandes historiques ci-dessous ne sont pas la recette EJBCA.
+> Une installation depuis trois VM vierges reste a valider.
+
 ## 1. Objectif
 
 Cette procédure permet de partir de serveurs neufs et d'installer la plateforme

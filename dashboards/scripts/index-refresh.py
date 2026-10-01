@@ -180,7 +180,10 @@ def setup_environment(args):
     args.verbose = malcolm_utils.set_logging(os.getenv("LOGLEVEL", ""), args.verbose, set_traceback_limit=True)
     opensearch_creds = malcolm_utils.ParseCurlFile(args.opensearch_curl_rc_file)
 
-    if args.opensearch_mode == DatabaseMode.ElasticsearchRemote and args.malcolm_url:
+    if int(args.opensearch_mode) in (
+        int(DatabaseMode.ElasticsearchRemote),
+        int(DatabaseMode.OpenSearchRemote),
+    ) and args.malcolm_url:
         args.malcolm_url = malcolm_utils.remove_suffix(args.malcolm_url, '/')
     else:
         args.malcolm_url = ''
@@ -504,12 +507,12 @@ def build_field_format_map(args, fields, prev_field_format_map):
     }
     field_map = {k: v for k, v in field_map.items() if v()}
 
-    for f in [
-        x
-        for x in fields
-        if x['name'][:1].isalpha() and (x['name'] not in format_map) and (x['type'] not in pivot_ignore_types)
-    ]:
+    elasticsearch_remote = int(args.opensearch_mode) == int(DatabaseMode.ElasticsearchRemote)
+    for f in [x for x in fields if x['name'][:1].isalpha() and (x['type'] not in pivot_ignore_types)]:
         name = f['name']
+        existing_url = malcolm_utils.deep_get(format_map, [name, 'params', 'urlTemplate'])
+        if (name in format_map) and ('iddash2ark' not in str(existing_url)):
+            continue
         fmt = {'id': 'url', 'params': {'labelTemplate': '{{value}}', 'openLinkInCurrentTab': False}}
 
         # lookup by exact name or suffix
@@ -518,7 +521,7 @@ def build_field_format_map(args, fields, prev_field_format_map):
         )
         if template_func:
             fmt['params']['urlTemplate'] = template_func()
-        elif args.malcolm_url or (args.opensearch_mode != DatabaseMode.ElasticsearchRemote):
+        elif args.malcolm_url or (not elasticsearch_remote):
             # for Arkime to query by database field name, see arkime issue/PR 1461/1463
             val_quote = '"' if f['type'] == 'string' else ''
             prefix = '' if name.startswith(('zeek', 'suricata')) else 'db:'

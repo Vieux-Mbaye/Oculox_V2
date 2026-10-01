@@ -17,6 +17,10 @@ usage() {
 Oculox - installation et exploitation résilientes
 
 Installation neuve :
+  ./oculox bootstrap principal --server-name <nom-DNS-ou-IP>
+  ./oculox pki-ca init|start|create-ca-plan|provision-profiles|harden|configure-api
+  ./oculox resume-install principal --server-name <nom-DNS-ou-IP> \
+      --opensearch-bundle <répertoire-bundle-core>
   ./oculox install principal --server-name <nom-DNS-ou-IP> \
       --opensearch-bundle <répertoire-bundle-core>
   ./oculox install hedgehog --principal-host <nom-DNS-ou-IP> \
@@ -51,6 +55,21 @@ Exploitation :
   ./oculox logs [service...]
   ./oculox pull
   ./oculox validate
+  ./oculox validate pki
+  ./oculox validate web|keycloak|dashboards|opensearch|ingestion|all
+  ./oculox pki audit
+  ./oculox pki status
+  ./oculox pki expiry
+  ./oculox pki agent-init --role cluster|collector --identity <nom>
+  ./oculox pki agent-install --bundle <répertoire> --root-sha256 <empreinte>
+  ./oculox pki request --service <entrée-manifest> [--install]
+  ./oculox pki enroll --provider ejbca [--service <entrée-manifest>] [--install] [--restart]
+  ./oculox pki renew --provider ejbca --service <entrée-manifest> [--install] [--restart]
+  ./oculox pki import --provider customer --bundle <répertoire-bundle> [--service <entrée-manifest>] [--install] [--restart]
+  ./oculox pki-ca init|config|pull|start|stop|restart|status|logs|validate|ca-plan|create-ca-plan|provision-profiles|configure-api|harden|verify-hardening
+  ./oculox pki-ca authorize-agent --role cluster|collector --identity <nom> --csr <CSR> --output <répertoire>
+  ./oculox pki-ca revoke-agent --role cluster|collector --identity <nom>
+  ./oculox pki-ca backup|backup-check|restore --help
   ./oculox collector-bundle <nom-collecteur> <nom-DNS-ou-IP-principal> [sortie]
   ./oculox configure-opensearch-remote --bundle <répertoire-bundle>
   ./oculox keycloak provision [--admin-username <nom>]
@@ -70,6 +89,8 @@ Exploitation :
   ./oculox verify ingestion finalize --baseline <rapport-core.json> \
       --collector-report <rapport-collecteur.json> --output <rapport-final.json>
   ./oculox verify failover --reports-dir <répertoire> --output <rapport.json>
+  ./oculox host-telemetry install-deps
+  ./oculox host-telemetry configure|start|stop|status|verify
 
 L'installation utilise les composants officiels compatibles et applique
 automatiquement l'interface Oculox. Les secrets d'authentification sont
@@ -106,6 +127,15 @@ official_start() {
     render_runtime_compose
     COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
         ./scripts/start -f "$RUNTIME_COMPOSE_FILE" -p "$PROFILE"
+}
+
+host_telemetry() {
+    if [[ "${1:-}" == install-deps ]]; then
+        shift
+        sudo ./dev/scripts/install-host-telemetry-deps.sh --project-dir "$PROJECT_DIR" "$@"
+    else
+        ./dev/scripts/configure-host-telemetry.py "$@" --project-dir "$PROJECT_DIR"
+    fi
 }
 
 read_state() {
@@ -199,8 +229,30 @@ prepare_principal() {
     [[ -n "$SERVER_NAME" ]] || { printf '%s\n' '--server-name est obligatoire' >&2; exit 2; }
     ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
     ./dev/scripts/configure-public-endpoint.py --public-host "$SERVER_NAME"
-    ./dev/scripts/generate-web-pki.sh
-    ./dev/scripts/generate-beats-pki.sh --server-name "$SERVER_NAME"
+    if [[ -s "$PROJECT_DIR/dev/ejbca/generated/ejbca.env" ]]; then
+        local core_service
+        for core_service in web_ca ingestion_ca web_server logstash_server filebeat_client; do
+            if ! python3 - "$PROJECT_DIR" "$core_service" <<'PY'
+from pathlib import Path
+import sys, yaml
+root = Path(sys.argv[1])
+spec = yaml.safe_load((root / 'dev/ejbca/pki-manifest.yml').read_text())['certificates'][sys.argv[2]]
+fields = ['cert', 'ca'] + (['key'] if spec['type'] != 'ca' else [])
+raise SystemExit(0 if all((root / spec[field]).is_file() for field in fields if spec.get(field)) else 1)
+PY
+            then
+                ./oculox pki enroll --provider ejbca --service "$core_service" --install
+            fi
+        done
+        ./dev/scripts/generate-web-pki.sh
+        ./dev/scripts/generate-beats-pki.sh --server-name "$SERVER_NAME"
+    elif [[ "${OCULOX_ALLOW_LOCAL_DEV_PKI:-0}" == 1 ]]; then
+        ./dev/scripts/generate-web-pki.sh
+        ./dev/scripts/generate-beats-pki.sh --server-name "$SERVER_NAME"
+    else
+        printf '%s\n' 'EJBCA doit etre installe avant ./oculox prepare principal. PKI locale refusee.' >&2
+        exit 1
+    fi
     ./dev/scripts/render-filebeat-ha-config.py \
         --output-dir "$PROJECT_DIR/dev/generated/filebeat" \
         --host logstash:5044 \
@@ -217,7 +269,7 @@ prepare_hedgehog() {
         printf '%s\n' '--principal-host, --collector-name et --bundle sont obligatoires' >&2
         exit 2
     }
-    for file in ca.crt client.crt client.key endpoints.env SHA256SUMS; do
+    for file in ca.crt endpoints.env SHA256SUMS; do
         [[ -s "$BUNDLE/$file" ]] || { printf 'Bundle incomplet : %s\n' "$BUNDLE/$file" >&2; exit 1; }
     done
     (cd "$BUNDLE" && sha256sum -c SHA256SUMS)
@@ -236,8 +288,25 @@ prepare_hedgehog() {
         --collector-name "$COLLECTOR_NAME"
     install -d -m 0700 "$PROJECT_DIR/dev/generated/pki"
     install -m 0644 "$BUNDLE/ca.crt" "$PROJECT_DIR/dev/generated/pki/ca.crt"
-    install -m 0644 "$BUNDLE/client.crt" "$PROJECT_DIR/dev/generated/pki/client.crt"
-    install -m 0600 "$BUNDLE/client.key" "$PROJECT_DIR/dev/generated/pki/client.key"
+    [[ -s "$PROJECT_DIR/dev/generated/pki/remote-agent/config.json" ]] || {
+        printf '%s\n' 'Agent PKI Collecteur absent; exécutez ./oculox pki agent-init et agent-install.' >&2
+        exit 1
+    }
+    python3 - "$PROJECT_DIR/dev/generated/pki/remote-agent" "$BUNDLE/ca.crt" "$COLLECTOR_NAME" <<'PY'
+import json, re, ssl, sys
+from pathlib import Path
+state = Path(sys.argv[1])
+config = json.loads((state / 'config.json').read_text())
+if config['role'] != 'collector' or config['identity'] != sys.argv[3]:
+    raise SystemExit('Enrollment agent does not match collector identity')
+def certificates(path):
+    return {ssl.PEM_cert_to_DER_cert(pem) for pem in re.findall(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', path.read_text(), re.S)}
+if certificates(Path(sys.argv[2])) != certificates(state / 'service-ca.crt'):
+    raise SystemExit('Collector bundle CA differs from authenticated enrollment trust')
+PY
+    if [[ ! -s "$PROJECT_DIR/dev/generated/pki/client.crt" ]]; then
+        ./oculox pki request --service filebeat_client --install
+    fi
     ./dev/scripts/render-filebeat-ha-config.py \
         --output-dir "$PROJECT_DIR/dev/generated/filebeat" \
         --host "${PRINCIPAL_HOST}:5044" \
@@ -253,6 +322,8 @@ prepare_role() {
         prepare_hedgehog
     fi
     apply_remote_opensearch_bundle
+    host_telemetry install-deps
+    host_telemetry configure
     ./dev/scripts/validate-compose.sh
     printf 'Préparation %s terminée.\n' "$ROLE"
 }
@@ -430,7 +501,7 @@ resume_command() {
 continue_install() {
     apply_remote_opensearch_bundle
     printf 'Étape 2/4 - Authentification et secrets officiels\n'
-    ./scripts/auth_setup
+    OCULOX_PKI_PROVIDER=ejbca ./scripts/auth_setup
     printf 'Étape 3/4 - Application du rôle et de la résilience Oculox\n'
     prepare_role
     printf 'Étape 4/4 - Démarrage de la plateforme complète\n'
@@ -478,10 +549,33 @@ EOF
     exit 1
 }
 
+bootstrap_system() {
+    protect_existing_role
+    sudo ./scripts/install.py --tui
+    ensure_python_yaml
+    sudo chown -R "$(id -u):$(id -g)" "$PROJECT_DIR/config"
+    sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 \
+        "$PROJECT_DIR/dev/generated"
+    sed -i "s/^PUID=0$/PUID=$(id -u)/" "$PROJECT_DIR/config/process.env"
+    sed -i "s/^PGID=0$/PGID=$(id -g)/" "$PROJECT_DIR/config/process.env"
+    if [[ "$ROLE" == principal ]]; then
+        ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
+        ./dev/scripts/configure-public-endpoint.py --public-host "$SERVER_NAME"
+    else
+        ./dev/scripts/configure-deployment-role.py --role hedgehog \
+            --principal-host "$PRINCIPAL_HOST" --collector-name "$COLLECTOR_NAME"
+    fi
+    printf '%s\n' 'Bootstrap système terminé. Aucun certificat local n’a été créé.'
+}
+
 COMMAND="${1:-}"
 shift || true
 
 case "$COMMAND" in
+    bootstrap)
+        parse_role_options "$@"
+        bootstrap_system
+        ;;
     install)
         if [[ "${1:-}" == cluster || "${1:-}" == opensearch-cluster ]]; then
             shift
@@ -489,31 +583,12 @@ case "$COMMAND" in
             exit
         fi
         parse_role_options "$@"
-        protect_existing_role
         printf 'Étape 1/4 - Installation système et configuration du socle Oculox\n'
-        # The complete official installer requires root on Linux and therefore
-        # creates config/*.env as root. Return those generated files to the
-        # operator before the unprivileged Oculox preparation reads them.
-        sudo ./scripts/install.py --tui
-        sudo chown -R "$(id -u):$(id -g)" "$PROJECT_DIR/config"
-        # The Oculox state is runtime data, not source code. Create its parent
-        # explicitly for the operator even when the repository was cloned by
-        # root, otherwise the role preparation cannot write deployment.env.
-        sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 \
-            "$PROJECT_DIR/dev/generated"
-        # Running the installer through sudo may also leave the default
-        # container identity at root. Correct only those root defaults and
-        # preserve any non-zero identity explicitly selected in the TUI.
-        sed -i "s/^PUID=0$/PUID=$(id -u)/" "$PROJECT_DIR/config/process.env"
-        sed -i "s/^PGID=0$/PGID=$(id -g)/" "$PROJECT_DIR/config/process.env"
-        if [[ "$ROLE" == principal ]]; then
-            ./dev/scripts/configure-deployment-role.py --role principal --server-name "$SERVER_NAME"
-        else
-            ./dev/scripts/configure-deployment-role.py \
-                --role hedgehog \
-                --principal-host "$PRINCIPAL_HOST" \
-                --collector-name "$COLLECTOR_NAME"
+        if [[ "$ROLE" == principal && ! -s "$PROJECT_DIR/dev/ejbca/generated/ejbca.env" ]]; then
+            printf '%s\n' 'EJBCA absent. Lancez bootstrap principal, installez EJBCA, puis resume-install principal.' >&2
+            exit 1
         fi
+        bootstrap_system
         continue_with_docker_access
         ;;
     resume-install)
@@ -533,6 +608,7 @@ case "$COMMAND" in
     start)
         read_state
         official_start
+        host_telemetry start --best-effort
         ./oculox status
         ;;
     restart)
@@ -542,11 +618,13 @@ case "$COMMAND" in
         # Reconcile the rendered configuration first through the official
         # startup path, then preserve the explicit restart semantics.
         official_start
+        host_telemetry start --best-effort
         compose --profile "$PROFILE" restart "$@"
         ./oculox status
         ;;
     stop)
         read_state
+        host_telemetry stop --best-effort
         compose --profile "$PROFILE" down
         ;;
     status)
@@ -562,9 +640,47 @@ case "$COMMAND" in
         compose --profile "$PROFILE" pull
         ;;
     validate)
-        ./dev/scripts/audit-dev-repository.sh
-        read_state
-        compose --profile "$PROFILE" config --quiet
+        case "${1:-}" in
+            pki)
+                shift
+                ./dev/scripts/pki-audit.py status "$@"
+                ;;
+            web|keycloak|dashboards|opensearch|ingestion|all)
+                ./dev/scripts/pki-validate-services.py "$@"
+                ;;
+            "")
+                ./dev/scripts/audit-dev-repository.sh
+                read_state
+                compose --profile "$PROFILE" config --quiet
+                ;;
+            *)
+                usage
+                exit 2
+                ;;
+        esac
+        ;;
+    pki)
+        case "${1:-}" in
+            monitor) shift; python3 ./dev/scripts/ejbca/monitor-expiry.py "$@" ;;
+            audit|status|expiry)
+                ./dev/scripts/pki-audit.py "$@"
+                ;;
+            agent-init|agent-install|agent-status|request)
+                python3 ./dev/scripts/ejbca/remote-enrollment.py "$@"
+                ;;
+            enroll|renew|import|chain)
+                ./dev/scripts/ejbca/pki-lifecycle.py "$@"
+                ;;
+            *) usage; exit 2 ;;
+        esac
+        ;;
+    pki-ca)
+        case "${1:-}" in
+            authorize-agent|revoke-agent) python3 ./dev/scripts/ejbca/remote-enrollment.py "$@" ;;
+            backup|backup-check|restore|restore-test) python3 ./dev/scripts/ejbca/backup-restore.py "$@" ;;
+            revoke-certificate) shift; python3 ./dev/scripts/ejbca/revoke-certificate.py "$@" ;;
+            *) ./dev/scripts/ejbca/manage-ejbca.sh "$@" ;;
+        esac
         ;;
     collector-bundle)
         ./dev/scripts/create-collector-bundle.sh "$@"
@@ -581,6 +697,9 @@ case "$COMMAND" in
         ;;
     keycloak)
         keycloak_command "$@"
+        ;;
+    host-telemetry)
+        host_telemetry "$@"
         ;;
     verify)
         case "${1:-}" in

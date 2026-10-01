@@ -104,8 +104,10 @@ class OidcSecurityConfigTest(unittest.TestCase):
         self.assertIn("--keycloak-ca", manager)
         self.assertIn("idp-trust", compose)
         self.assertIn("idp-egress", compose)
-        self.assertIn("render-oidc-security-config.py", manager)
-        self.assertIn("update-security-config.sh", manager)
+        trust = (ROOT / "dev/scripts/opensearch-cluster/oidc-trust.py").read_text(encoding="utf-8")
+        self.assertIn("oidc-trust.py", manager)
+        self.assertIn("render-oidc-security-config.py", trust)
+        self.assertIn("update-security-config.sh", trust)
 
 
 if __name__ == "__main__":

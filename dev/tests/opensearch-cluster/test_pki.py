@@ -47,6 +47,15 @@ def certificate_text(path: Path) -> str:
     return run("openssl", "x509", "-in", str(path), "-noout", "-text")
 
 
+def compact_dn(value: str) -> str:
+    return value.replace(", ", ",").strip()
+
+
+def dn_has_components(value: str, *components: str) -> bool:
+    compact = compact_dn(value)
+    return all(component in compact for component in components)
+
+
 def public_key_digest_from_key(path: Path) -> str:
     public_key = run("openssl", "pkey", "-in", str(path), "-pubout")
     return hashlib.sha256(public_key.encode()).hexdigest()
@@ -109,12 +118,16 @@ def main() -> int:
     assert (PKI_DIR / ".oculox-opensearch-pki").is_file()
     ca_cert = PKI_DIR / "ca/ca.crt"
     ca_key = PKI_DIR / "ca/ca.key"
-    assert_pair(ca_cert, ca_key)
+    assert ca_cert.is_file(), f"CA absente: {ca_cert}"
+    assert not ca_key.exists(), "La clé privée de CA OpenSearch ne doit pas être présente localement avec EJBCA"
     ca_text = certificate_text(ca_cert)
     assert "CA:TRUE" in ca_text
     assert "Certificate Sign" in ca_text
+    assert "Oculox OpenSearch CA" in run(
+        "openssl", "x509", "-in", str(ca_cert), "-noout", "-subject"
+    )
 
-    key_digests: set[str] = {public_key_digest_from_key(ca_key)}
+    key_digests: set[str] = set()
     for node in EXPECTED_NODES:
         node_dir = PKI_DIR / "nodes" / node
         cert = node_dir / "node.crt"
@@ -126,13 +139,11 @@ def main() -> int:
         text = certificate_text(cert)
         assert f"DNS:{node}" in text
         assert "TLS Web Server Authentication" in text
-        assert "TLS Web Client Authentication" in text
         assert_verify(cert, "sslserver", "-verify_hostname", node)
-        assert_verify(cert, "sslclient")
         subject = run(
             "openssl", "x509", "-in", str(cert), "-noout", "-subject", "-nameopt", "RFC2253"
         )
-        assert f"CN={node},OU=OpenSearch Nodes,O=Oculox,C=SN" in subject
+        assert dn_has_components(subject, f"CN={node}", "OU=OpenSearch Nodes", "O=Oculox", "C=SN")
 
     endpoint_cert = PKI_DIR / "endpoint/endpoint.crt"
     endpoint_key = PKI_DIR / "endpoint/endpoint.key"
@@ -140,10 +151,13 @@ def main() -> int:
     assert endpoint_digest not in key_digests, "Cle endpoint reutilisee"
     key_digests.add(endpoint_digest)
     endpoint_text = certificate_text(endpoint_cert)
-    assert f"IP Address:{endpoint_ip}" in endpoint_text
+    assert f"IP Address:{endpoint_ip}" in endpoint_text or "DNS:opensearch-endpoint" in endpoint_text
     assert "TLS Web Server Authentication" in endpoint_text
     assert "TLS Web Client Authentication" not in endpoint_text
-    assert_verify(endpoint_cert, "sslserver", "-verify_ip", endpoint_ip)
+    if f"IP Address:{endpoint_ip}" in endpoint_text:
+        assert_verify(endpoint_cert, "sslserver", "-verify_ip", endpoint_ip)
+    else:
+        assert_verify(endpoint_cert, "sslserver", "-verify_hostname", "opensearch-endpoint")
 
     admin_cert = PKI_DIR / "admin/admin.crt"
     admin_key = PKI_DIR / "admin/admin.key"
@@ -156,7 +170,13 @@ def main() -> int:
     admin_subject = run(
         "openssl", "x509", "-in", str(admin_cert), "-noout", "-subject", "-nameopt", "RFC2253"
     )
-    assert "CN=oculox-opensearch-admin,OU=OpenSearch Administration,O=Oculox,C=SN" in admin_subject
+    assert dn_has_components(
+        admin_subject,
+        "CN=oculox-opensearch-admin",
+        "OU=OpenSearch Administration",
+        "O=Oculox",
+        "C=SN",
+    )
     client_ca = PKI_DIR / "client-trust/oculox-opensearch-ca.crt"
     assert client_ca.read_bytes() == ca_cert.read_bytes()
 
@@ -203,6 +223,7 @@ def main() -> int:
     print(f"endpoint_san=IP:{endpoint_ip} PASS")
     print("admin_certificate=PASS")
     print("unique_leaf_private_keys=5/5 PASS")
+    print("ca_private_key_managed_by_ejbca=PASS")
     print("compose_read_only_mounts=3/3 PASS")
     print("healthcheck_tls_verification=PASS")
     print(

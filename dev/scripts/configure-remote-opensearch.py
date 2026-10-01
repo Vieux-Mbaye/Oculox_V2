@@ -142,6 +142,14 @@ def main() -> None:
     if ca_check.returncode != 0:
         raise SystemExit(f"Certificat CA invalide ou expire : {ca_check.stderr.strip()}")
 
+    # Validate the real server before changing the active trust store.
+    tls_check = subprocess.run(
+        ["curl", "--silent", "--show-error", "--max-time", "15", "--cacert", str(ca_source), "-o", "/dev/null", endpoint],
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False,
+    )
+    if tls_check.returncode != 0:
+        raise SystemExit(f"Bundle refuse: l'endpoint ne valide pas avec cette CA: {tls_check.stderr.strip()}")
+
     for client in ROLE_CLIENTS[role]:
         path = bundle / f"{client}.curlrc"
         if not path.is_file():

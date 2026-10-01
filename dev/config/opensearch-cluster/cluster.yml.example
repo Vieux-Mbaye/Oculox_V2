@@ -9,6 +9,8 @@ cluster:
 
 endpoint:
   ip: 192.0.2.10
+  # Optional client DNS; ip remains the local listener address.
+  dns: null
   port: 9200
   monitoring_port: 8404
 

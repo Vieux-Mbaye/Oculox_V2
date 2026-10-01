@@ -87,9 +87,15 @@ publish_material() {
   local ca_certificate="$3"
   install -d -m 0700 "${CERT_DIR}" "${BUNDLE_DIR}"
   install -d -m 0755 "${TRUST_DIR}"
-  install -m 0644 "${certificate}" "${CERT_DIR}/cert.pem"
-  install -m 0600 "${private_key}" "${CERT_DIR}/key.pem"
-  install -m 0644 "${ca_certificate}" "${TRUST_DIR}/oculox-web-ca.crt"
+  if [[ ! "${certificate}" -ef "${CERT_DIR}/cert.pem" ]]; then
+    install -m 0644 "${certificate}" "${CERT_DIR}/cert.pem"
+  fi
+  if [[ ! "${private_key}" -ef "${CERT_DIR}/key.pem" ]]; then
+    install -m 0600 "${private_key}" "${CERT_DIR}/key.pem"
+  fi
+  if [[ ! "${ca_certificate}" -ef "${TRUST_DIR}/oculox-web-ca.crt" ]]; then
+    install -m 0644 "${ca_certificate}" "${TRUST_DIR}/oculox-web-ca.crt"
+  fi
   install -m 0644 "${ca_certificate}" "${BUNDLE_DIR}/oculox-web-ca.crt"
   cat > "${BUNDLE_DIR}/endpoint.env" <<EOF
 OCULOX_PUBLIC_HOST=${PUBLIC_HOST}
@@ -129,6 +135,27 @@ if [[ "${MODE}" == provided ]]; then
   exit 0
 fi
 
+# An externally issued certificate must never fall back to a development CA.
+if [[ -s "${CERT_DIR}/cert.pem" ]] && {
+  [[ ! -s "${CA_KEY}" ]] || ! openssl verify -CAfile "${CA_CERT}" "${CERT_DIR}/cert.pem" >/dev/null 2>&1
+}; then
+  [[ "${FORCE}" == false ]] || {
+    echo "External web PKI: renew through its issuer, not --force" >&2
+    exit 1
+  }
+  validate_material "${CERT_DIR}/cert.pem" "${CERT_DIR}/key.pem" "${TRUST_DIR}/oculox-web-ca.crt" || {
+    echo "External web certificate invalid for ${PUBLIC_HOST}; enroll a replacement with its issuer" >&2
+    exit 1
+  }
+  publish_material "${CERT_DIR}/cert.pem" "${CERT_DIR}/key.pem" "${TRUST_DIR}/oculox-web-ca.crt"
+  echo "External web PKI retained for ${PUBLIC_URL}"
+  exit 0
+fi
+
+[[ "${OCULOX_ALLOW_LOCAL_DEV_PKI:-0}" == 1 ]] || {
+  echo "Local CA generation disabled. Enroll with ./oculox pki using EJBCA." >&2
+  exit 1
+}
 if [[ "${FORCE}" == true ]]; then
   rm -f \
     "${CA_KEY}" \

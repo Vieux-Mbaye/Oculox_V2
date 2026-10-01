@@ -1,0 +1,248 @@
+# Oculox EJBCA CA and certificate profile plan.
+#
+# Phase 4 validates this file as the authoritative design for CA creation.
+# The initial implementation documents and validates the plan; automatic EJBCA
+# API provisioning is intentionally left for the enrollment phase.
+
+metadata:
+  version: 1
+  owner: oculox
+  purpose: ejbca-ca-profile-plan
+  status: phase-4-design-approved
+
+certificate_authorities:
+  oculox_root_ca:
+    display_name: Oculox Root CA
+    type: root
+    signing_algorithm: SHA256WithRSA
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 10y
+    path_length_constraint: 2
+    subject_dn: CN=Oculox Root CA,OU=Oculox PKI,O=Oculox,C=SN
+    usage:
+      - sign_intermediate_ca
+    operational_policy:
+      online_in_dev: true
+      online_in_production: false
+      backup_required: true
+
+  oculox_web_ca:
+    display_name: Oculox Web CA
+    type: intermediate
+    issuer: oculox_root_ca
+    signing_algorithm: SHA256WithRSA
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 5y
+    path_length_constraint: 0
+    subject_dn: CN=Oculox Web CA,OU=Oculox Web PKI,O=Oculox,C=SN
+    usage:
+      - sign_tls_server
+
+  oculox_internal_services_ca:
+    display_name: Oculox Internal Services CA
+    type: intermediate
+    issuer: oculox_root_ca
+    signing_algorithm: SHA256WithRSA
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 5y
+    path_length_constraint: 0
+    subject_dn: CN=Oculox Internal Services CA,OU=Oculox Services PKI,O=Oculox,C=SN
+    usage:
+      - sign_tls_server
+      - sign_tls_client
+
+  oculox_opensearch_ca:
+    display_name: Oculox OpenSearch CA
+    type: intermediate
+    issuer: oculox_root_ca
+    signing_algorithm: SHA256WithRSA
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 5y
+    path_length_constraint: 0
+    subject_dn: CN=Oculox OpenSearch CA,OU=Oculox OpenSearch PKI,O=Oculox,C=SN
+    usage:
+      - sign_opensearch_node
+      - sign_opensearch_admin
+      - sign_opensearch_endpoint
+
+certificate_profiles:
+  oculox-web-ca:
+    issuer: oculox_root_ca
+    type: ca
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 5y
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    extended_key_usage: []
+    san_required: false
+    target_manifest_entries:
+      - web_ca
+
+  oculox-internal-services-ca:
+    issuer: oculox_root_ca
+    type: ca
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 5y
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    extended_key_usage: []
+    san_required: false
+    target_manifest_entries:
+      - ingestion_ca
+
+  oculox-opensearch-ca:
+    issuer: oculox_root_ca
+    type: ca
+    key_algorithm: RSA
+    key_size: 4096
+    validity: 5y
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    extended_key_usage: []
+    san_required: false
+    target_manifest_entries:
+      - opensearch_cluster_ca
+      - opensearch_remote_trust
+
+  oculox-web-server:
+    issuer: oculox_web_ca
+    type: server
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 397d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - serverAuth
+    san_required: true
+    target_manifest_entries:
+      - web_server
+
+  oculox-logstash-server:
+    issuer: oculox_internal_services_ca
+    type: server
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 825d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - serverAuth
+    san_required: true
+    target_manifest_entries:
+      - logstash_server
+
+  oculox-filebeat-client:
+    issuer: oculox_internal_services_ca
+    type: client
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 825d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - clientAuth
+    san_required: true
+    target_manifest_entries:
+      - filebeat_client
+
+  oculox-opensearch-node:
+    issuer: oculox_opensearch_ca
+    type: server-client
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 825d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - serverAuth
+      - clientAuth
+    san_required: true
+    target_manifest_entries:
+      - opensearch_node_1
+      - opensearch_node_2
+      - opensearch_node_3
+
+  oculox-opensearch-admin:
+    issuer: oculox_opensearch_ca
+    type: client
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 825d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - clientAuth
+    san_required: true
+    target_manifest_entries:
+      - opensearch_admin_client
+
+  oculox-opensearch-endpoint:
+    issuer: oculox_opensearch_ca
+    type: server
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 825d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - serverAuth
+    san_required: true
+    target_manifest_entries:
+      - opensearch_endpoint
+
+  oculox-ejbca-api-server:
+    issuer: oculox_web_ca
+    type: server
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 397d
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - serverAuth
+    san_required: true
+    target_manifest_entries:
+      - ejbca_api_server
+
+  oculox-enrollment-agent:
+    issuer: oculox_internal_services_ca
+    type: client
+    key_algorithm: RSA
+    key_size: 3072
+    validity: 397d
+    key_usage:
+      - digitalSignature
+    extended_key_usage:
+      - clientAuth
+    san_required: true
+    target_manifest_entries:
+      - enrollment_agent
+
+revocation_policy:
+  crl_enabled: true
+  ocsp_target: planned
+  revoke_on_private_key_compromise: true
+  revoke_on_service_decommission: true
+
+backup_policy:
+  database_backup_required: true
+  ca_key_backup_required: true
+  encrypted_offline_copy_required: true
+  restore_test_required_before_production: true

@@ -1,5 +1,10 @@
 # Scripts du cluster OpenSearch
 
+L'installation appelle l'enrolement EJBCA REST mTLS vers la VM Core via
+un agent autorise. Les cles privees des noeuds et de l'endpoint restent sur
+la VM Cluster. Consulter la [reference installation](../../ejbca/docs/installation_3_vm_et_bundles.md)
+avant d'executer le cycle VM neuve ci-dessous.
+
 Ce répertoire contient les commandes reproductibles de préparation et
 d'exploitation du cluster dédié. L'opérateur les utilise normalement par le
 lanceur racine :
@@ -38,11 +43,14 @@ Creer un bundle Core contenant uniquement la CA et les comptes de service :
 ./oculox cluster client-bundle core /chemin-securise/oculox-core-opensearch
 ```
 
-Pour Hedgehog, utiliser `--role hedgehog`. Le bundle contient des secrets,
+Pour Hedgehog, utiliser `./oculox cluster client-bundle hedgehog <sortie>`. Le bundle contient des secrets,
 reste en mode 0700 et ne doit jamais etre ajoute a Git.
 
 ## Cycle Complet VM Neuve
 
+Ces commandes supposent le Core et EJBCA deja prepares, et l'agent Cluster
+autorise puis installe. Pour l'ordre complet, suivre la
+[procedure trois VM](../../ejbca/docs/installation_3_vm_et_bundles.md).
 Sur la VM cluster :
 
 ```bash
@@ -55,7 +63,7 @@ Sur la VM cluster :
 Sur la VM Core, le bundle Core est importe avec :
 
 ```bash
-./oculox install principal \
+./oculox resume-install principal \
   --server-name <IP_CORE_OU_DNS> \
   --opensearch-bundle <repertoire-bundle-core>
 ```
@@ -71,9 +79,10 @@ techniques separees.
 |---|---|
 | `prepare-host.py` | Verifie les prerequis systeme de la VM cluster |
 | `render-cluster-config.py` | Rend la configuration cluster depuis le modele |
-| `generate-pki.sh` | Genere CA, certificats noeuds, endpoint et admin |
+| `generate-pki.sh` | Generateur historique de PKI locale, hors chemin normal EJBCA |
 | `generate-security-config.sh` | Genere utilisateurs internes, roles et hashes |
 | `render-oidc-security-config.py` | Ajoute la configuration OIDC OpenSearch Security |
+| `oidc-trust.py` | Controle discovery/JWKS, recharge la confiance Web EJBCA sans modifier les roles, configure OIDC depuis l'etat Security actif |
 | `initialize-security.sh` | Initialise OpenSearch Security une seule fois |
 | `update-security-config.sh` | Applique une configuration Security validee |
 | `update-security-roles.sh` | Met a jour roles et mappings sans reinitialiser le cluster |

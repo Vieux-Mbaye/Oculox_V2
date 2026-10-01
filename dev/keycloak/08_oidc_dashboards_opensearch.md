@@ -1,5 +1,13 @@
 # Phase K6 - OIDC Dashboards Et OpenSearch
 
+> Mise a jour EJBCA du 1 octobre 2026 : le cluster doit faire confiance a la
+> chaine Web EJBCA, distincte de sa CA OpenSearch. Apres demarrage du Core,
+> executer sur Cluster `./oculox cluster configure-oidc --keycloak-auth-url
+> https://<CORE>/keycloak`, puis `./oculox cluster verify-oidc`. Pour corriger
+> seulement une ancienne confiance, utiliser `./oculox cluster oidc-trust` :
+> les roles et mappings actifs ne sont pas reecrits. Le parcours a jour est
+> dans [la procedure trois VM](../ejbca/docs/installation_3_vm_et_bundles.md).
+
 ## But
 
 Cette phase connecte OpenSearch Dashboards à Keycloak pour les utilisateurs

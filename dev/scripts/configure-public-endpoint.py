@@ -63,6 +63,11 @@ def main() -> None:
     parser.add_argument("--public-host", required=True, help="IPv4, IPv6 or DNS name of the Core")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--keycloak-env", type=Path, default=PROJECT_DIR / "config/keycloak.env")
+    parser.add_argument(
+        "--dashboards-helper-env",
+        type=Path,
+        default=PROJECT_DIR / "config/dashboards-helper.env",
+    )
     parser.add_argument("--deployment-env", type=Path, default=PROJECT_DIR / "dev/generated/deployment.env")
     args = parser.parse_args()
 
@@ -99,6 +104,12 @@ def main() -> None:
             "KC_HOSTNAME": keycloak_url,
             "KC_HOSTNAME_BACKCHANNEL_DYNAMIC": "true",
             "KC_HOSTNAME_STRICT": "true",
+        },
+    )
+    update_env(
+        args.dashboards_helper_env,
+        {
+            "MALCOLM_URL": public_url,
         },
     )
     update_env(

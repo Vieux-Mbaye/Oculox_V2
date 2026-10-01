@@ -1,0 +1,289 @@
+# Oculox PKI source of truth.
+#
+# This file declares which certificates the platform expects and where Oculox
+# installs them. It does not create certificates and it does not define a CA by
+# itself. EJBCA, or a customer PKI, remains the certificate authority.
+
+metadata:
+  version: 1
+  owner: oculox
+  purpose: ejbca-integration-phase-2
+  description: >
+    Certificate inventory used by ./oculox pki audit, status and expiry.
+    Paths are repository-relative unless an absolute path is explicitly used.
+
+defaults:
+  warning_days: 60
+  critical_days: 30
+
+certificates:
+  web_server:
+    service: nginx-proxy
+    zone: web
+    profile: oculox-web-server
+    type: server
+    required: true
+    full_chain: true
+    cert: nginx/certs/cert.pem
+    key: nginx/certs/key.pem
+    ca: nginx/ca-trust/oculox-web-ca.crt
+    expected_usage:
+      - serverAuth
+    san_required_from:
+      - dev/generated/public-endpoint.env:OCULOX_PUBLIC_HOST
+    trust_distribution:
+      - nginx/ca-trust/oculox-web-ca.crt
+      - dev/generated/web-trust/oculox-web-ca.crt
+    reload:
+      - nginx-proxy
+    notes: >
+      Public HTTPS certificate used by the reverse proxy for the Oculox portal,
+      Keycloak public URL and proxied web applications.
+
+  web_ca:
+    service: nginx-proxy
+    zone: web
+    profile: oculox-web-ca
+    type: ca
+    required: true
+    cert: nginx/ca-trust/oculox-web-ca.crt
+    key: dev/generated/web-pki/ca.key
+    private_key_managed_by: ejbca
+    expected_ca: true
+    reload:
+      - nginx-proxy
+    notes: >
+      Web intermediate and root certificates exported from EJBCA.
+
+  ingestion_ca:
+    service: filebeat-logstash
+    zone: ingestion
+    profile: oculox-internal-services-ca
+    type: ca
+    required: true
+    cert: dev/generated/pki/ca.crt
+    key: dev/generated/pki/ca.key
+    private_key_managed_by: ejbca
+    expected_ca: true
+    reload:
+      - filebeat
+      - logstash
+      - logstash-2
+    notes: >
+      Trust anchor used by the Filebeat to Logstash TLS/mTLS ingestion path.
+
+  logstash_server:
+    service: logstash
+    zone: ingestion
+    profile: oculox-logstash-server
+    type: server
+    required: true
+    cert: dev/generated/pki/server.crt
+    key: dev/generated/pki/server.key
+    ca: dev/generated/pki/ca.crt
+    expected_usage:
+      - serverAuth
+    san_required:
+      - logstash
+      - logstash-2
+    san_required_from:
+      - dev/generated/deployment.env:OCULOX_SERVER_NAME
+    mounted_as:
+      cert: /certs/server.crt
+      key: /certs/server.key
+      ca: /certs/ca.crt
+    reload:
+      - logstash
+      - logstash-2
+    notes: >
+      Server certificate presented by Logstash Beats inputs.
+
+  filebeat_client:
+    service: filebeat
+    zone: ingestion
+    profile: oculox-filebeat-client
+    type: client
+    required: true
+    cert: dev/generated/pki/client.crt
+    key: dev/generated/pki/client.key
+    ca: dev/generated/pki/ca.crt
+    expected_usage:
+      - clientAuth
+    san_required:
+      - filebeat
+    san_required_from:
+      - dev/generated/deployment.env:OCULOX_COLLECTOR_NAME
+    mounted_as:
+      cert: /certs/client.crt
+      key: /certs/client.key
+      ca: /certs/ca.crt
+    reload:
+      - filebeat
+    notes: >
+      Client certificate used by Filebeat for authenticated ingestion.
+
+  opensearch_cluster_ca:
+    service: opensearch-cluster
+    zone: opensearch
+    profile: oculox-opensearch-ca
+    type: ca
+    required: false
+    cert: dev/generated/opensearch-cluster/pki/ca/ca.crt
+    key: dev/generated/opensearch-cluster/pki/ca/ca.key
+    private_key_managed_by: ejbca
+    expected_ca: true
+    trust_distribution:
+      - dev/generated/opensearch-cluster/pki/client-trust/oculox-opensearch-ca.crt
+      - nginx/ca-trust/oculox-opensearch-ca.crt
+    reload:
+      - opensearch-1
+      - opensearch-2
+      - opensearch-3
+    notes: >
+      Dedicated CA for the optional three-node OpenSearch cluster.
+
+  opensearch_node_1:
+    service: opensearch-1
+    zone: opensearch
+    profile: oculox-opensearch-node
+    type: server-client
+    required: false
+    subject_dn: CN=opensearch-1,OU=OpenSearch Nodes,O=Oculox,C=SN
+    cert: dev/generated/opensearch-cluster/pki/nodes/opensearch-1/node.crt
+    key: dev/generated/opensearch-cluster/pki/nodes/opensearch-1/node.key
+    ca: dev/generated/opensearch-cluster/pki/nodes/opensearch-1/ca.crt
+    expected_usage:
+      - serverAuth
+      - clientAuth
+    san_required:
+      - opensearch-1
+    reload:
+      - opensearch-1
+
+  opensearch_node_2:
+    service: opensearch-2
+    zone: opensearch
+    profile: oculox-opensearch-node
+    type: server-client
+    required: false
+    subject_dn: CN=opensearch-2,OU=OpenSearch Nodes,O=Oculox,C=SN
+    cert: dev/generated/opensearch-cluster/pki/nodes/opensearch-2/node.crt
+    key: dev/generated/opensearch-cluster/pki/nodes/opensearch-2/node.key
+    ca: dev/generated/opensearch-cluster/pki/nodes/opensearch-2/ca.crt
+    expected_usage:
+      - serverAuth
+      - clientAuth
+    san_required:
+      - opensearch-2
+    reload:
+      - opensearch-2
+
+  opensearch_node_3:
+    service: opensearch-3
+    zone: opensearch
+    profile: oculox-opensearch-node
+    type: server-client
+    required: false
+    subject_dn: CN=opensearch-3,OU=OpenSearch Nodes,O=Oculox,C=SN
+    cert: dev/generated/opensearch-cluster/pki/nodes/opensearch-3/node.crt
+    key: dev/generated/opensearch-cluster/pki/nodes/opensearch-3/node.key
+    ca: dev/generated/opensearch-cluster/pki/nodes/opensearch-3/ca.crt
+    expected_usage:
+      - serverAuth
+      - clientAuth
+    san_required:
+      - opensearch-3
+    reload:
+      - opensearch-3
+
+  opensearch_admin_client:
+    service: opensearch-security-admin
+    zone: opensearch
+    profile: oculox-opensearch-admin
+    type: client
+    required: false
+    subject_dn: CN=oculox-opensearch-admin,OU=OpenSearch Administration,O=Oculox,C=SN
+    cert: dev/generated/opensearch-cluster/pki/admin/admin.crt
+    key: dev/generated/opensearch-cluster/pki/admin/admin.key
+    ca: dev/generated/opensearch-cluster/pki/admin/ca.crt
+    expected_usage:
+      - clientAuth
+    reload: []
+    notes: >
+      Certificate used for OpenSearch security administration.
+
+  opensearch_endpoint:
+    service: opensearch-endpoint
+    zone: opensearch
+    profile: oculox-opensearch-endpoint
+    type: server
+    required: false
+    subject_dn: CN=opensearch-endpoint,OU=OpenSearch HTTP,O=Oculox,C=SN
+    cert: dev/generated/opensearch-cluster/pki/endpoint/endpoint.crt
+    key: dev/generated/opensearch-cluster/pki/endpoint/endpoint.key
+    ca: dev/generated/opensearch-cluster/pki/endpoint/ca.crt
+    expected_usage:
+      - serverAuth
+    san_required:
+      - opensearch-endpoint
+    san_required_from:
+      - dev/generated/opensearch-cluster/cluster.env:OPENSEARCH_ENDPOINT_BIND_IP
+    san_optional_from:
+      - dev/generated/opensearch-cluster/cluster.env:OPENSEARCH_ENDPOINT_DNS
+    reload:
+      - opensearch-endpoint
+    notes: >
+      TLS endpoint used by clients to reach the OpenSearch cluster.
+
+  opensearch_remote_trust:
+    service: opensearch-clients
+    zone: opensearch
+    profile: oculox-opensearch-ca
+    type: ca
+    required: false
+    cert: nginx/ca-trust/oculox-opensearch-ca.crt
+    expected_ca: true
+    private_key_managed_by: ejbca
+    reload:
+      - dashboards
+      - arkime
+      - api
+      - dashboards-helper
+      - logstash
+      - logstash-2
+    notes: >
+      CA trusted by Oculox services when OpenSearch is provided by a remote
+      cluster bundle.
+
+  ejbca_api_server:
+    service: ejbca
+    zone: web
+    profile: oculox-ejbca-api-server
+    type: server
+    required: false
+    cert: dev/ejbca/generated/server-tls/cert.crt
+    key: dev/ejbca/generated/server-tls/key.key
+    ca: dev/ejbca/generated/server-tls/ca.crt
+    expected_usage:
+      - serverAuth
+    san_required:
+      - 127.0.0.1
+      - oculox-ejbca.local
+    san_required_from:
+      - dev/ejbca/generated/ejbca.env:OCULOX_EJBCA_PUBLIC_HOST
+    reload: []
+
+  enrollment_agent:
+    service: ejbca-enrollment
+    zone: services
+    profile: oculox-enrollment-agent
+    type: client
+    required: false
+    cert: dev/ejbca/generated/agent/cert.crt
+    key: dev/ejbca/generated/agent/key.key
+    ca: dev/ejbca/generated/agent/ca.crt
+    expected_usage:
+      - clientAuth
+    san_required:
+      - enrollment-agent
+    reload: []

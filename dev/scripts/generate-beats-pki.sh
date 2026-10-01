@@ -31,8 +31,13 @@ for file in "${required_files[@]}"; do
 done
 
 if [[ "$complete" == true && -n "$SERVER_NAME" ]]; then
-    openssl x509 -in "${PKI_DIR}/server.crt" -noout -ext subjectAltName 2>/dev/null \
-        | grep -Fq "$SERVER_NAME" || complete=false
+    if [[ "$SERVER_NAME" =~ ^[0-9.]+$ || "$SERVER_NAME" == *:* ]]; then
+        identity_check=(-checkip "$SERVER_NAME")
+    else
+        identity_check=(-checkhost "$SERVER_NAME")
+    fi
+    openssl x509 -in "${PKI_DIR}/server.crt" -noout "${identity_check[@]}" 2>/dev/null \
+        | grep -Fq 'does match certificate' || complete=false
 fi
 
 if [[ "$complete" == true && "$FORCE" == false ]]; then
@@ -42,6 +47,15 @@ if [[ "$complete" == true && "$FORCE" == false ]]; then
     exit 0
 fi
 
+if [[ -s "${PKI_DIR}/ca.crt" && ! -s "${PKI_DIR}/ca.key" ]]; then
+    printf '%s\n' 'PKI ingestion externe: reenroler les certificats aupres de leur autorite; aucune CA locale ne sera recreee.' >&2
+    exit 1
+fi
+
+[[ "${OCULOX_ALLOW_LOCAL_DEV_PKI:-0}" == 1 ]] || {
+    printf '%s\n' 'Local CA generation disabled. Enroll with ./oculox pki using EJBCA.' >&2
+    exit 1
+}
 umask 077
 rm -rf "$PKI_DIR"
 mkdir -p "$PKI_DIR"

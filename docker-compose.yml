@@ -1521,16 +1521,16 @@ networks:
     external: false
 x-malcolm:
   aux-forwarders:
-    aide: false
-    auditlog: false
-    cpu: false
-    df: false
-    disk: false
-    kmsg: false
-    mem: false
-    network: false
-    systemd: false
-    thermal: false
+    aide: true
+    auditlog: true
+    cpu: true
+    df: true
+    disk: true
+    kmsg: true
+    mem: true
+    network: true
+    systemd: true
+    thermal: true
   prune:
     pcap: false
     logs: false

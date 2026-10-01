@@ -229,21 +229,36 @@ monte en permanence dans les applications.
 Le **Distinguished Name**, ou DN, est le nom complet inscrit dans un certificat.
 Exemple : organisation Oculox, unite OpenSearch Nodes et nom opensearch-1.
 
-## 9. PKI : `generate-pki.sh`
+## 9. PKI : EJBCA et manifest Oculox
 
 ### A montrer
 
 ```text
-dev/scripts/opensearch-cluster/generate-pki.sh
+dev/ejbca/pki-manifest.yml
+dev/scripts/ejbca/pki-lifecycle.py
+dev/scripts/opensearch-cluster/manage-cluster.sh
 dev/generated/opensearch-cluster/pki/
 ```
 
 ### A dire
 
-> La PKI etablit la confiance cryptographique. Une autorite de certification
-> commune signe un certificat different pour chaque noeud, un certificat pour
-> HAProxy et un certificat administrateur. Les cles privees sont differentes et
-> ne sont jamais versionnees dans Git.
+> La PKI etablit la confiance cryptographique. Dans la version durcie,
+> l'autorite reelle est EJBCA. Oculox declare les certificats attendus dans un
+> manifest, demande leur emission a EJBCA, les installe dans les chemins actifs,
+> puis valide les noeuds OpenSearch, l'endpoint HAProxy et le certificat
+> administrateur.
+
+La CA OpenSearch est `Oculox OpenSearch CA`. Elle signe :
+
+- un certificat pour `opensearch-1` ;
+- un certificat pour `opensearch-2` ;
+- un certificat pour `opensearch-3` ;
+- un certificat pour l'endpoint HTTPS `opensearch-endpoint` ;
+- un certificat client administrateur `oculox-opensearch-admin`.
+
+Le script `generate-pki.sh` est conserve comme artefact historique de
+developpement, mais le chemin normal d'installation du cluster passe par
+`./oculox pki enroll --provider ejbca`.
 
 ### Termes difficiles
 
@@ -260,6 +275,10 @@ dev/generated/opensearch-cluster/pki/
 Pour joindre `https://192.168.1.241:9200`, le certificat de HAProxy doit
 contenir `IP:192.168.1.241` dans ses SAN. Sinon, la CA peut etre correcte mais
 le nom de destination reste invalide.
+
+Pour eviter de figer une adresse dans Git, cette IP vient du fichier runtime
+`dev/generated/opensearch-cluster/cluster.env`. Si la VM change d'adresse, il
+faut re-emettre ou faire tourner le certificat endpoint.
 
 ## 10. Security : les fichiers du dossier `security`
 

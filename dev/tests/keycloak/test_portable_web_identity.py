@@ -25,6 +25,7 @@ class PortableWebIdentityTest(unittest.TestCase):
         self.base = Path(self.temp.name)
         self.identity = self.base / "public-endpoint.env"
         self.keycloak = self.base / "keycloak.env"
+        self.helper = self.base / "dashboards-helper.env"
         self.deployment = self.base / "deployment.env"
         self.pki = self.base / "web-pki"
         self.certs = self.base / "nginx-certs"
@@ -40,6 +41,7 @@ class PortableWebIdentityTest(unittest.TestCase):
             "KC_HOSTNAME_STRICT=false\n"
         )
         self.deployment.write_text("OCULOX_ROLE=principal\nOCULOX_SERVER_NAME=old\n")
+        self.helper.write_text("MALCOLM_URL=https://old.example\n")
 
     def tearDown(self):
         self.temp.cleanup()
@@ -54,6 +56,8 @@ class PortableWebIdentityTest(unittest.TestCase):
                 str(self.identity),
                 "--keycloak-env",
                 str(self.keycloak),
+                "--dashboards-helper-env",
+                str(self.helper),
                 "--deployment-env",
                 str(self.deployment),
             ],
@@ -77,7 +81,9 @@ class PortableWebIdentityTest(unittest.TestCase):
             str(self.bundle),
         ]
         command.extend(extra or [])
-        return subprocess.run(command, text=True, capture_output=True, check=True)
+        # This legacy development-PKI test only writes to its temporary directory.
+        return subprocess.run(command, text=True, capture_output=True, check=True,
+                              env={**os.environ, "OCULOX_ALLOW_LOCAL_DEV_PKI": "1"})
 
     def test_ipv4_dns_and_ipv6_rendering(self):
         cases = {

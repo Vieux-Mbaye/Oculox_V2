@@ -25,6 +25,7 @@ Gestion du cluster OpenSearch Oculox
   ./oculox install cluster --endpoint-ip <adresse-IP> [--heap 2g]
   ./oculox install cluster --config <cluster.yml> [--endpoint-ip <adresse-IP>]
   ./oculox cluster start
+  ./oculox cluster prepare-host
   ./oculox cluster stop
   ./oculox cluster restart
   ./oculox cluster status
@@ -33,8 +34,11 @@ Gestion du cluster OpenSearch Oculox
   ./oculox cluster config
   ./oculox cluster apply --config <cluster.yml>
   ./oculox cluster configure-oidc --keycloak-auth-url <URL> [--realm oculox] [--keycloak-ca <ca.crt>]
+  ./oculox cluster oidc-trust
+  ./oculox cluster verify-oidc
   ./oculox cluster client-bundle core <sortie>
   ./oculox cluster client-bundle hedgehog <sortie>
+  ./oculox cluster pki-migrate status|trust|leaf|retire|rotate|rollback [--check] [--backup DIR]
 
 La commande install est réexécutable après une interruption. Elle ne supprime
 jamais les volumes de données et ne remplace jamais une PKI existante.
@@ -188,6 +192,60 @@ check_endpoint_bindings() {
   fi
 }
 
+ensure_ejbca_opensearch_pki() {
+  local -a entries=(
+    opensearch_node_1
+    opensearch_node_2
+    opensearch_node_3
+    opensearch_admin_client
+    opensearch_endpoint
+  )
+  local entry
+
+  [[ -s "$PROJECT_DIR/dev/generated/pki/remote-agent/config.json" ]] || {
+    printf '%s\n' 'Agent PKI Cluster absent. Exécutez ./oculox pki agent-init, puis faites autoriser sa CSR sur le Core.' >&2
+    exit 1
+  }
+  printf '%s\n' 'Enrolement PKI OpenSearch via EJBCA distant...'
+  for entry in "${entries[@]}"; do
+    if [[ ! -s "$(python3 - "$PROJECT_DIR" "$entry" <<'PY'
+from pathlib import Path
+import sys, yaml
+root = Path(sys.argv[1])
+with (root / 'dev/ejbca/pki-manifest.yml').open(encoding='utf-8') as stream:
+    manifest = yaml.safe_load(stream)
+print(root / manifest['certificates'][sys.argv[2]]['cert'])
+PY
+)" ]]; then
+      "$PROJECT_DIR/oculox" pki request --service "$entry" --install
+    fi
+  done
+  install -d -m 0700 "$PKI_DIR/ca" "$PKI_DIR/client-trust"
+  install -m 0644 "$PROJECT_DIR/dev/generated/pki/remote-agent/service-ca.crt" "$PKI_DIR/ca/ca.crt"
+  install -m 0644 "$PROJECT_DIR/dev/generated/pki/remote-agent/service-ca.crt" "$CA_FILE"
+  # Web trust is separate from the CA signing OpenSearch certificates.
+  install -d -m 0755 "$IDP_TRUST_DIR"
+  if [[ ! -s "$IDP_TRUST_DIR/keycloak-ca.crt" ]]; then
+    install -m 0644 "$PROJECT_DIR/dev/generated/pki/remote-agent/api-ca.crt" "$IDP_TRUST_DIR/keycloak-ca.crt"
+  elif ! cmp -s "$PROJECT_DIR/dev/generated/pki/remote-agent/api-ca.crt" "$IDP_TRUST_DIR/keycloak-ca.crt"; then
+    printf '%s\n' 'Confiance Keycloak obsolete: executer ./oculox cluster oidc-trust avant de reprendre.' >&2
+    exit 1
+  fi
+  [[ ! -e "$PKI_DIR/ca/ca.key" ]] || {
+    printf '%s\n' 'Cle de CA locale detectee: migration explicite requise, installation refusee.' >&2
+    exit 1
+  }
+  {
+    printf 'provider=ejbca\n'
+    printf 'issuer=Oculox OpenSearch CA\n'
+    printf 'endpoint=%s\n' "$(env_value OPENSEARCH_CLUSTER_ENDPOINT)"
+    printf 'generated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$PKI_DIR/manifest.txt"
+  chmod 0600 "$PKI_DIR/manifest.txt"
+  touch "$PKI_DIR/.oculox-opensearch-pki"
+  chmod 0600 "$PKI_DIR/.oculox-opensearch-pki"
+}
+
 create_default_bundles() {
   local endpoint output role
   endpoint="$(env_value OPENSEARCH_CLUSTER_ENDPOINT)"
@@ -247,56 +305,10 @@ apply_cluster_config() {
 }
 
 configure_oidc() {
-  local keycloak_auth_url="" realm="oculox" client_id="oculox-dashboards" keycloak_ca="" idp_ca_path=""
   shift
-  while (($#)); do
-    case "$1" in
-      --keycloak-auth-url) shift; keycloak_auth_url="${1:-}" ;;
-      --realm) shift; realm="${1:-}" ;;
-      --client-id) shift; client_id="${1:-}" ;;
-      --keycloak-ca) shift; keycloak_ca="${1:-}" ;;
-      *) printf 'Option inconnue : %s\n' "$1" >&2; usage; exit 2 ;;
-    esac
-    shift
-  done
-  [[ -n "$keycloak_auth_url" ]] || {
-    printf '%s\n' './oculox cluster configure-oidc exige --keycloak-auth-url <URL>.' >&2
-    exit 2
-  }
   require_runtime_state
   ensure_docker_access
-  if [[ -n "$keycloak_ca" ]]; then
-    [[ -f "$keycloak_ca" ]] || {
-      printf 'CA Keycloak introuvable : %s\n' "$keycloak_ca" >&2
-      exit 2
-    }
-    install -d -m 0755 "$IDP_TRUST_DIR"
-    install -m 0644 "$keycloak_ca" "$IDP_TRUST_DIR/keycloak-ca.crt"
-    idp_ca_path="/usr/share/opensearch/config/idp-trust/keycloak-ca.crt"
-    compose up -d --no-deps --force-recreate opensearch-1 opensearch-2 opensearch-3
-    recreate_endpoint
-    wait_for_nodes
-    wait_for_endpoint
-    wait_for_cluster_green
-  fi
-  local render_args=(
-    --source "$SECURITY_DIR/config"
-    --output "$SECURITY_DIR/oidc-config"
-    --keycloak-auth-url "$keycloak_auth_url"
-    --realm "$realm"
-    --client-id "$client_id"
-  )
-  [[ -z "$idp_ca_path" ]] || render_args+=(--idp-ca-path "$idp_ca_path")
-  "$SCRIPT_DIR/render-oidc-security-config.py" \
-    "${render_args[@]}"
-  "$SCRIPT_DIR/update-security-config.sh" \
-    --admin-dir "$PKI_DIR/admin" \
-    --security-dir "$SECURITY_DIR/oidc-config" \
-    --image "$(env_value OPENSEARCH_IMAGE)"
-  recreate_endpoint
-  wait_for_endpoint
-  wait_for_cluster_green
-  printf '%s\n' 'OpenSearch Security configuré pour OIDC + Basic technique.'
+  python3 "$SCRIPT_DIR/oidc-trust.py" configure "$@"
 }
 
 install_cluster() {
@@ -365,11 +377,7 @@ install_cluster() {
   install -m 0600 "$candidate_env" "$ENV_FILE"
   install -m 0600 "$candidate_config" "$CONFIG_FILE"
 
-  [[ -d "$PKI_DIR" ]] || "$SCRIPT_DIR/generate-pki.sh" --endpoint-ip "$configured_ip"
-  if [[ -s "$PKI_DIR/manifest.txt" ]] && ! grep -Fxq "endpoint_ip=$configured_ip" "$PKI_DIR/manifest.txt"; then
-    printf 'La PKI existante appartient à une autre adresse endpoint. Rotation explicite requise.\n' >&2
-    exit 1
-  fi
+  ensure_ejbca_opensearch_pki
   [[ -d "$SECURITY_DIR" ]] || "$SCRIPT_DIR/generate-security-config.sh"
   "$SCRIPT_DIR/render-endpoint-proxy-config.sh"
   compose config --quiet
@@ -400,6 +408,10 @@ install_cluster() {
 
 COMMAND="${1:-}"
 case "$COMMAND" in
+  prepare-host)
+    sudo "$SCRIPT_DIR/prepare-host.py" --operator "$OPERATOR"
+    printf '%s\n' 'Ouvrez une nouvelle session si le groupe Docker vient d etre attribue.'
+    ;;
   install)
     install_cluster "$@"
     ;;
@@ -426,6 +438,7 @@ case "$COMMAND" in
     OPENSEARCH_CLUSTER_ENV_FILE="$ENV_FILE" python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_pki.py"
     python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_security_config.py"
     OPENSEARCH_CLUSTER_ENV_FILE="$ENV_FILE" python3 "$PROJECT_DIR/dev/tests/opensearch-cluster/test_endpoint_proxy.py"
+    python3 "$SCRIPT_DIR/oidc-trust.py" verify --if-configured
     ;;
   config)
     require_runtime_state
@@ -438,6 +451,13 @@ case "$COMMAND" in
   configure-oidc)
     configure_oidc "$@"
     ;;
+  oidc-trust|verify-oidc)
+    require_runtime_state; ensure_docker_access
+    action=trust
+    [[ "$1" != verify-oidc ]] || action=verify
+    shift
+    python3 "$SCRIPT_DIR/oidc-trust.py" "$action" "$@"
+    ;;
   client-bundle)
     require_runtime_state
     role="${2:-}"; output="${3:-}"
@@ -445,6 +465,10 @@ case "$COMMAND" in
     [[ -n "$output" ]] || { usage; exit 2; }
     "$SCRIPT_DIR/create-client-bundle.py" --role "$role" \
       --endpoint "$(env_value OPENSEARCH_CLUSTER_ENDPOINT)" --output "$output"
+    ;;
+  pki-migrate)
+    shift
+    python3 "$SCRIPT_DIR/migrate-ejbca.py" "$@"
     ;;
   *) usage; exit 2 ;;
 esac

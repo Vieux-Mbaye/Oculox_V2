@@ -1729,6 +1729,11 @@ def authSetup():
     # 2 - preselected choice
     # 3 - option default (yes/no) for if they're doing "all""
     # 4 - perform automatically if the listed files don't exist (auto first-time generation)
+    external_pki = os.environ.get('OCULOX_PKI_PROVIDER') == 'ejbca' or os.path.isfile(
+        os.path.join(GetMalcolmPath(), 'dev', 'ejbca', 'generated', 'ejbca.env')
+    ) or os.path.isfile(os.path.join(GetMalcolmPath(), 'dev', 'generated', 'pki', 'remote-agent', 'config.json'))
+    if external_pki and (args.authGenWebCerts or args.authGenFwCerts):
+        raise RuntimeError('EJBCA manages certificates: use ./oculox pki instead of self-signed generation')
     authConfigChoices = [
         x
         for x in [
@@ -1755,7 +1760,7 @@ def authSetup():
                 [],
             ),
             (
-                'webcerts' if (args.composeProfile == PROFILE_MALCOLM) else None,
+                'webcerts' if (args.composeProfile == PROFILE_MALCOLM and not external_pki) else None,
                 "(Re)generate self-signed certificates for HTTPS access",
                 False,
                 not args.cmdAuthSetupNonInteractive
@@ -1768,7 +1773,7 @@ def authSetup():
                 [os.path.join(GetMalcolmPath(), os.path.join('nginx', os.path.join('certs', 'key.pem')))],
             ),
             (
-                'fwcerts' if (args.composeProfile == PROFILE_MALCOLM) else None,
+                'fwcerts' if (args.composeProfile == PROFILE_MALCOLM and not external_pki) else None,
                 "(Re)generate self-signed certificates for a remote log forwarder",
                 False,
                 not args.cmdAuthSetupNonInteractive

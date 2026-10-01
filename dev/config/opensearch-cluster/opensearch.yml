@@ -32,10 +32,14 @@ plugins:
       - "CN=opensearch-1,OU=OpenSearch Nodes,O=Oculox,C=SN"
       - "CN=opensearch-2,OU=OpenSearch Nodes,O=Oculox,C=SN"
       - "CN=opensearch-3,OU=OpenSearch Nodes,O=Oculox,C=SN"
+      - "C=SN,O=Oculox,OU=OpenSearch Nodes,CN=opensearch-1"
+      - "C=SN,O=Oculox,OU=OpenSearch Nodes,CN=opensearch-2"
+      - "C=SN,O=Oculox,OU=OpenSearch Nodes,CN=opensearch-3"
     nodes_dn_dynamic_config_enabled: false
     authcz:
       admin_dn:
         - "CN=oculox-opensearch-admin,OU=OpenSearch Administration,O=Oculox,C=SN"
+        - "C=SN,O=Oculox,OU=OpenSearch Administration,CN=oculox-opensearch-admin"
     roles_mapping_resolution: MAPPING_ONLY
     audit:
       type: internal_opensearch

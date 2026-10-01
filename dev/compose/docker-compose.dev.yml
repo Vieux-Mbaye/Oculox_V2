@@ -46,8 +46,12 @@ services:
     restart: unless-stopped
     # The official "Expose Oculox Service Ports" option publishes Filebeat on
     # host port 5045. Oculox reserves that host port for the second Logstash
-    # Beats endpoint, so remove the official Filebeat publication.
-    ports: !reset []
+    # Beats endpoint, so Oculox exposes third-party host telemetry on a
+    # dedicated Filebeat TCP port.
+    ports: !override
+      - "${OCULOX_FILEBEAT_TELEMETRY_BIND_IP:-127.0.0.1}:5055:5055/tcp"
+      - "${OCULOX_FILEBEAT_SYSLOG_BIND_IP:-127.0.0.1}:5514:5514/tcp"
+      - "${OCULOX_FILEBEAT_SYSLOG_BIND_IP:-127.0.0.1}:5514:5514/udp"
     volumes:
       - ./dev/generated/filebeat/filebeat-logs.yml:/usr/share/filebeat-logs/filebeat-logs.yml:ro
       - ./dev/generated/filebeat/filebeat-nginx.yml:/usr/share/filebeat-nginx/filebeat-nginx.yml:ro
@@ -90,6 +94,7 @@ services:
     ports:
       - "${OCULOX_LOGSTASH_BIND_IP:-0.0.0.0}:5044:5044/tcp"
     volumes:
+      - ./shared/bin/jdk-cacerts-auto-import.sh:/usr/local/bin/jdk-cacerts-auto-import.sh:ro
       - ./dev/config/logstash/input/01_beats_input.conf:/usr/share/logstash/malcolm-pipelines.available/input/01_beats_input.conf:ro
       - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/beats/00_config.conf:ro
       - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/enrichment/00_config.conf:ro
@@ -198,6 +203,7 @@ services:
     ports: !override
       - "${OCULOX_LOGSTASH_BIND_IP:-0.0.0.0}:5045:5044/tcp"
     volumes:
+      - ./shared/bin/jdk-cacerts-auto-import.sh:/usr/local/bin/jdk-cacerts-auto-import.sh:ro
       - logstash-persistent-queue-2:/logstash-persistent-queue
       - ./dev/config/logstash/input/01_beats_input.conf:/usr/share/logstash/malcolm-pipelines.available/input/01_beats_input.conf:ro
       - ./dev/config/logstash/pipeline-settings/00_persistent_default.conf:/usr/share/logstash/malcolm-pipelines.available/beats/00_config.conf:ro

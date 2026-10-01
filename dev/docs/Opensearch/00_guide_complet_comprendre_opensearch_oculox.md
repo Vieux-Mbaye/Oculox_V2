@@ -1,5 +1,9 @@
 # Comprendre OpenSearch dans Oculox, du mono-noeud au cluster securise
 
+> Ce guide conserve les etapes historiques du developpement. Ses constats
+> intermediaires ne sont pas l'etat actuel. Pour les VM neuves et la PKI EJBCA,
+> suivre [la procedure actuelle](../../ejbca/docs/installation_3_vm_et_bundles.md).
+
 ## 1. Objectif de ce guide
 
 Ce document explique le travail OpenSearch depuis les bases jusqu'a la fin de

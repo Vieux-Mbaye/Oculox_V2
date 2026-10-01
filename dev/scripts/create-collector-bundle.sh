@@ -17,7 +17,7 @@ OUTPUT_DIR="${3:-${PROJECT_DIR}/dev/generated/collector-bundles/${COLLECTOR_NAME
 [[ "$COLLECTOR_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || { usage; exit 2; }
 [[ "$PRINCIPAL_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.:_-]*$ ]] || { usage; exit 2; }
 
-for file in ca.crt ca.key server.crt; do
+for file in ca.crt server.crt; do
     [[ -s "${PKI_DIR}/${file}" ]] || {
         printf 'PKI principale incomplète : %s est absent.\n' "${PKI_DIR}/${file}" >&2
         exit 1
@@ -48,33 +48,12 @@ else
 fi
 
 umask 077
+if [[ -e "${OUTPUT_DIR}/client.key" || -e "${OUTPUT_DIR}/client.crt" ]]; then
+    printf 'Ancien bundle avec cle client detecte; choisissez un repertoire de sortie neuf.\n' >&2
+    exit 1
+fi
 mkdir -p "$OUTPUT_DIR"
-WORK_DIR="$(mktemp -d)"
-trap 'rm -rf "$WORK_DIR"' EXIT
-
-cat >"${WORK_DIR}/client.ext" <<EOF
-basicConstraints=critical,CA:FALSE
-keyUsage=critical,digitalSignature,keyEncipherment
-extendedKeyUsage=clientAuth
-subjectAltName=DNS:${COLLECTOR_NAME}
-EOF
-
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 \
-    -out "${WORK_DIR}/client.key" >/dev/null 2>&1
-openssl req -new -sha256 -key "${WORK_DIR}/client.key" \
-    -subj "/O=Oculox/OU=Hedgehog/CN=${COLLECTOR_NAME}" \
-    -out "${WORK_DIR}/client.csr"
-openssl x509 -req -sha256 -days 825 \
-    -in "${WORK_DIR}/client.csr" \
-    -CA "${PKI_DIR}/ca.crt" \
-    -CAkey "${PKI_DIR}/ca.key" \
-    -CAcreateserial \
-    -extfile "${WORK_DIR}/client.ext" \
-    -out "${WORK_DIR}/client.crt" >/dev/null 2>&1
-
 install -m 0644 "${PKI_DIR}/ca.crt" "${OUTPUT_DIR}/ca.crt"
-install -m 0644 "${WORK_DIR}/client.crt" "${OUTPUT_DIR}/client.crt"
-install -m 0600 "${WORK_DIR}/client.key" "${OUTPUT_DIR}/client.key"
 cat >"${OUTPUT_DIR}/endpoints.env" <<EOF
 OCULOX_COLLECTOR_NAME=${COLLECTOR_NAME}
 OCULOX_PRINCIPAL_HOST=${PRINCIPAL_HOST}
@@ -85,10 +64,9 @@ chmod 0600 "${OUTPUT_DIR}/endpoints.env"
 
 (
     cd "$OUTPUT_DIR"
-    sha256sum ca.crt client.crt client.key endpoints.env > SHA256SUMS
+    sha256sum ca.crt endpoints.env > SHA256SUMS
     chmod 0600 SHA256SUMS
 )
 
-openssl verify -CAfile "${OUTPUT_DIR}/ca.crt" "${OUTPUT_DIR}/client.crt"
 printf 'Bundle collecteur créé : %s\n' "$OUTPUT_DIR"
-printf 'Transférez ce répertoire par un canal sécurisé vers le collecteur %s.\n' "$COLLECTOR_NAME"
+printf 'Bundle public uniquement; aucun certificat ou cle privee client. Enrolez le Collecteur sur sa VM.\n'
