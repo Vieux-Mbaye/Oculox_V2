@@ -4,6 +4,7 @@
 import importlib.util
 import argparse
 import json
+import ssl
 import tempfile
 import unittest
 from pathlib import Path
@@ -40,10 +41,12 @@ class TrustTest(unittest.TestCase):
     def test_rollback_trust_after_failed_reload(self):
         with tempfile.TemporaryDirectory() as tmp:
             trust, ca, backup = Path(tmp) / "active", Path(tmp) / "new", Path(tmp) / "backup"
-            trust.write_text("old CA")
-            ca.write_text("new CA")
+            old = ssl.DER_cert_to_PEM_cert(b"old-ca")
+            new = ssl.DER_cert_to_PEM_cert(b"new-ca")
+            trust.write_text(old)
+            ca.write_text(new)
             backup.mkdir()
-            (backup / "keycloak-ca.crt").write_text("old CA")
+            (backup / "keycloak-ca.crt").write_text(old)
             migration = MODULE.module("test_migration", "migrate-ejbca.py")
             with patch.object(MODULE, "TRUST", trust), patch.object(MODULE, "validate_ca"), \
                     patch.object(MODULE, "probe"), patch.object(MODULE, "security", return_value={}), \
@@ -52,7 +55,7 @@ class TrustTest(unittest.TestCase):
                     patch.object(MODULE, "reload_nodes", side_effect=[RuntimeError("reload failed"), None]):
                 with self.assertRaisesRegex(RuntimeError, "reload failed"):
                     MODULE.apply_trust(ca, "https://core/discovery")
-                self.assertEqual(trust.read_text(), "old CA")
+                self.assertEqual(trust.read_text(), old)
 
     def test_no_security_rewrite_in_trust_only(self):
         source = (ROOT / "dev/scripts/opensearch-cluster/oidc-trust.py").read_text()
@@ -91,8 +94,9 @@ class TrustTest(unittest.TestCase):
     def test_idempotent_current_trust_does_not_restart(self):
         with tempfile.TemporaryDirectory() as tmp:
             trust, ca = Path(tmp) / "active", Path(tmp) / "new"
-            trust.write_text("current CA")
-            ca.write_text("current CA")
+            pem = ssl.DER_cert_to_PEM_cert(b"current-ca")
+            trust.write_text("Subject: same certificate\n" + pem)
+            ca.write_text(pem)
             migration = Mock()
             with patch.object(MODULE, "TRUST", trust), patch.object(MODULE, "validate_ca"), \
                     patch.object(MODULE, "probe"), patch.object(MODULE, "security", return_value={}), \
@@ -100,6 +104,13 @@ class TrustTest(unittest.TestCase):
                     patch.object(MODULE, "reload_nodes") as reload:
                 MODULE.apply_trust(ca, "https://core/discovery")
                 reload.assert_not_called()
+
+    def test_rejects_extra_data_in_ca_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ca.crt"
+            path.write_text(ssl.DER_cert_to_PEM_cert(b"certificate") + "PRIVATE KEY\n")
+            with self.assertRaisesRegex(RuntimeError, "Invalid CA certificate bundle"):
+                MODULE.certificate_chain(path)
 
     def test_tls_verification_cannot_be_disabled(self):
         config = {"config": {"dynamic": {"authc": {"oidc": {"http_enabled": True,

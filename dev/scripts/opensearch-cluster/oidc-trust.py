@@ -9,6 +9,8 @@ import fcntl
 import importlib.util
 import json
 import os
+import re
+import ssl
 import subprocess
 import sys
 from pathlib import Path
@@ -104,14 +106,23 @@ def probe(url: str, ca: Path | None = None) -> None:
         print(f"PASS {node}: HTTPS discovery, issuer and JWKS", flush=True)
 
 
+def certificate_chain(ca: Path) -> tuple[bytes, ...]:
+    content = ca.read_text(encoding="ascii")
+    blocks = re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", content, re.S)
+    remaining = re.sub(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", "", content, flags=re.S)
+    if not blocks or any(line.strip() and not line.startswith(("Subject:", "Issuer:"))
+                         for line in remaining.splitlines()):
+        raise RuntimeError(f"Invalid CA certificate bundle: {ca}")
+    return tuple(ssl.PEM_cert_to_DER_cert(block) for block in blocks)
+
+
 def validate_ca(ca: Path) -> None:
     # Reuse the same root pin validation as remote enrollment, without private keys.
     spec = importlib.util.spec_from_file_location("remote_enrollment", ROOT / "dev/scripts/ejbca/remote-enrollment.py")
     remote = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(remote)
     remote.verify_pinned_bundle(AGENT, remote.fingerprint(AGENT / "root.crt"))
-    pem = ca.read_text(encoding="ascii")
-    if "PRIVATE KEY" in pem or pem != (AGENT / "api-ca.crt").read_text(encoding="ascii"):
+    if certificate_chain(ca) != certificate_chain(AGENT / "api-ca.crt"):
         raise RuntimeError("Use the Web CA bundle from the root-pinned enrollment agent; refresh the agent for CA rotation")
 
 
@@ -145,7 +156,7 @@ def apply_trust(ca: Path, url: str) -> None:
     before, mappings = security("securityconfig"), security("rolesmapping")
     migration = module("migration", "migrate-ejbca.py")
     migration.health()
-    if TRUST.exists() and TRUST.read_bytes() == ca.read_bytes():
+    if TRUST.exists() and certificate_chain(TRUST) == certificate_chain(ca):
         probe(url)
         print("OIDC trust already current; no restart")
         return

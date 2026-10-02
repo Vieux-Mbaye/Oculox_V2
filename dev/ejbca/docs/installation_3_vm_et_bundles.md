@@ -28,6 +28,15 @@ conteneurs, pas a la perte de cette VM ou de son disque.
 - Cloner la meme revision du depot sur les trois VM. Synchroniser l'heure et
   verifier le routage Core/Cluster/Collecteur. Ne jamais committer `config/*.env`,
   `dev/generated/`, `dev/ejbca/generated/`, les bundles ou les sauvegardes.
+
+Sur chaque VM, cloner la branche publiee et verifier la revision avant de
+commencer. Utiliser la meme revision sur les trois machines :
+
+```bash
+git clone --branch main https://github.com/Vieux-Mbaye/Oculox_V2.git ~/Oculox_V2
+cd ~/Oculox_V2
+git rev-parse HEAD
+```
 - Le Core doit etre joignable par le Cluster et le Collecteur sur le port
   EJBCA HTTPS configure (`18443` par defaut). Restreindre ce port par pare-feu
   aux machines autorisees. Le port HTTP de bootstrap (`18080`) reste local.
@@ -111,9 +120,9 @@ Emettre les certificats Core, apres `bootstrap` pour que les SAN contiennent
 l'adresse choisie :
 
 ```bash
-./oculox pki enroll --provider ejbca --service web_server --install
 ./oculox pki enroll --provider ejbca --service web_ca --install
 ./oculox pki enroll --provider ejbca --service ingestion_ca --install
+./oculox pki enroll --provider ejbca --service web_server --install
 ./oculox pki enroll --provider ejbca --service logstash_server --install
 ./oculox pki enroll --provider ejbca --service filebeat_client --install
 ./oculox pki status
@@ -141,8 +150,17 @@ de sa cle SSH :
 
 ```bash
 ./oculox pki-ca authorize-agent --role cluster --identity cluster-01 \
+  --endpoint-ip <IP_LOCALE_CLUSTER> \
   --csr ~/cluster-01.csr --output ~/cluster-01-enrollment
 ```
+
+Si l'endpoint a un nom DNS stable chez le client, ajouter
+`--endpoint-dns <DNS_CLUSTER>`. L'IP et le DNS doivent correspondre a
+`endpoint.ip` et `endpoint.dns` dans `~/oculox-cluster.yml`. Le Core inscrit
+ces valeurs dans des profils d'entite EJBCA propres au Cluster : les SAN des
+trois noeuds et de l'endpoint ne sont pas modifiables par l'agent. Une IP
+changee demande une nouvelle identite d'agent autorisee avec la nouvelle IP,
+puis une rotation coordonnee des certificats.
 
 Cette commande cree dans EJBCA un role d'enrolement limite aux profils
 OpenSearch, signe la CSR et affiche l'empreinte de la Root CA. Elle ne renvoie
@@ -286,6 +304,15 @@ Sur Core :
 scp -r ~/collector-01-enrollment <USER_COLLECTOR>@<IP_COLLECTOR>:~/
 ```
 
+L'autorisation du Collecteur cree un profil d'entite EJBCA propre a son
+identite. Ses SAN DNS `filebeat` et `collector-01` sont fixes et non
+modifiables dans EJBCA. Le role de cet agent refuse le profil Filebeat partage
+et n'autorise que ce profil propre. Ainsi, une requete REST directe demandant
+le SAN d'un autre collecteur est rejetee par EJBCA, pas seulement par le
+script Oculox. Refaire l'autorisation si un ancien bundle d'agent n'a pas de
+champ `end_entity_profile` ; ne pas reutiliser un role Collecteur ancien qui
+autorise encore le profil partage.
+
 Sur Collecteur, verifier l'empreinte et installer l'agent puis le role :
 
 ```bash
@@ -302,6 +329,16 @@ OpenSearch `hedgehog` distinct cree sur Cluster et l'option
 `--opensearch-bundle <repertoire>` a `install hedgehog`.
 
 ## Exploitation et limites
+
+Si `pki-ca validate` signale une erreur HTTP 500, verifier d'abord l'etat de
+`oculox-ejbca` et `oculox-ejbca-db`, ainsi que la connexion TCP entre eux.
+Une requete SQL dans la base seule ne prouve pas que le reseau EJBCA fonctionne.
+Avant de recreer le reseau Compose, faire une sauvegarde chiffree et son
+`backup-check`. `./oculox pki-ca stop` suivi de `./oculox pki-ca start`
+recree uniquement cette pile Compose et conserve les volumes EJBCA. Controler
+ensuite `pki-ca validate`, `pki-ca verify-hardening`, `validate all` et un
+enrolement de test. Ne jamais utiliser `docker compose down -v` pour cette
+reprise.
 
 - `./oculox pki expiry`, `./oculox validate all` et `./oculox verify clients`
   donnent des controles locaux. `./oculox pki renew --provider ejbca --service
@@ -350,7 +387,9 @@ Sur la VM qui possede l'agent :
 ```
 
 Transferer seulement `pending.csr` au Core. Sur Core, executer `authorize-agent`
-avec la meme identite et `--renew`; transferer le nouveau repertoire public.
+avec la meme identite et `--renew`; pour Cluster, repeter aussi
+`--endpoint-ip <IP_LOCALE_CLUSTER>` et le meme `--endpoint-dns` eventuel.
+Transferer le nouveau repertoire public.
 Sur la VM, executer `agent-install --renew --bundle <DIR> --root-sha256 <EMPREINTE>`
 puis `pki agent-status --online`. Les anciennes cle et configuration sont
 sauvegardees localement. Pour renouveler Filebeat sur Collecteur :
@@ -359,6 +398,30 @@ sauvegardees localement. Pour renouveler Filebeat sur Collecteur :
 ./oculox pki request --service filebeat_client --install --restart
 ./oculox validate ingestion
 ```
+
+Les profils limites v2 imposent les DN (CN, OU, O, C) et les SAN cote EJBCA.
+Chaque renouvellement cree une nouvelle entite EJBCA et une nouvelle cle
+locale. Les CA Services internes et OpenSearch autorisent plusieurs
+certificats portant le meme DN, car leurs profils v2 imposent ce DN et les SAN
+cote serveur. L'agent n'a aucun droit de modification d'entite : il ne peut
+donc ni reprendre ni transformer l'entite d'un autre agent.
+Un agent installe avec les anciens profils v1 doit etre renouvele suivant
+la procedure ci-dessus avant d'utiliser le nouveau client. Cette mise a jour
+des droits n'impose pas de migrer a nouveau les certificats actifs du Cluster.
+Les valeurs IP/DNS approuvees sont immuables dans un profil : pour changer
+l'adresse d'un Cluster, autoriser une nouvelle identite d'agent avec les
+nouvelles valeurs, valider la rotation puis revoquer l'ancien agent.
+Une ancienne cle d'agent sauvegardee reste un secret. Apres validation du
+nouvel agent, sur Core, revoquer uniquement son ancien certificat public :
+
+```bash
+./oculox pki-ca revoke-certificate --certificate <ANCIEN_AGENT_PUBLIC.crt> \
+  --reason superseded --output-crl <NOUVEAU_FICHIER_CRL>
+```
+
+Ne pas utiliser `revoke-agent` pour cette etape : il retirerait aussi les
+droits de la nouvelle cle de la meme identite. Verifier ensuite que le nouvel
+agent peut emettre et que l'ancien certificat ne peut plus le faire.
 
 ### Revocation et surveillance
 
@@ -387,6 +450,11 @@ Sur chaque VM, activer la surveillance d'expiration :
 systemctl status oculox-pki-expiry.timer
 journalctl -u oculox-pki-expiry.service
 ```
+
+Les installateurs Core, Cluster et Collecteur activent ce timer
+automatiquement apres le demarrage valide des services. La commande
+`./oculox pki monitor install` reste idempotente pour une installation
+existante ou une reparation.
 
 Le timer quotidien ecrit `PKI_ALERT` dans le journal et echoue des le seuil
 d'avertissement (60 jours par defaut), sans renouvellement automatique aveugle.

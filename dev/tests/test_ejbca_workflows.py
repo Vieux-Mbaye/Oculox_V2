@@ -5,11 +5,13 @@ import argparse
 import copy
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import patch
 
@@ -75,6 +77,95 @@ class PinnedTrustTests(unittest.TestCase):
 
 
 class EnrollmentPolicyTests(unittest.TestCase):
+    def test_profile_expansion_ignores_only_trailing_disabled_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "entity.xml"
+            PROFILES.render_entity(PROFILES.PROFILES / "entity-profile-template.xml", path, 123, 456)
+            root = ET.parse(path).getroot().find("object")
+            expected = REMOTE.profile_policy(root)
+            counts = next(item[1] for item in root.findall("void")
+                          if len(item) == 2 and item[0].text == "NUMBERARRAY")
+            for _ in range(10):
+                ET.SubElement(ET.SubElement(counts, "void", {"method": "add"}), "int").text = "0"
+            self.assertEqual(REMOTE.profile_policy(root), expected)
+            counts[-1][0].text = "1"
+            self.assertNotEqual(REMOTE.profile_policy(root), expected)
+            counts[-1][0].text = "0"
+            counts[5][0].text = "2"
+            self.assertNotEqual(REMOTE.profile_policy(root), expected)
+
+    def test_runtime_validation_rejects_stopped_ca_and_failed_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manager = root / "dev/scripts/ejbca/manage-ejbca.sh"
+            manager.parent.mkdir(parents=True)
+            shutil.copy2(ROOT / "dev/scripts/ejbca/manage-ejbca.sh", manager)
+            env = root / "dev/ejbca/generated/ejbca.env"
+            env.parent.mkdir(parents=True)
+            env.write_text("EJBCA_CA_TOKEN_PASSWORD=fixture\nEJBCA_ADMIN_USERNAME=fixture\n")
+            shell = '''docker() {
+                case "$*" in
+                    *"ps --services"*)
+                        if [[ "$SCENARIO" != stopped ]]; then printf 'ejbca\\n'; fi ;;
+                    *"exec -T ejbca-db"*) return 1 ;;
+                    *) return 0 ;;
+                esac
+            }
+            python3() { return 0; }
+            export -f docker python3
+            bash "$1" validate
+            '''
+            for scenario in ("stopped", "database-failed"):
+                result = subprocess.run(["bash", "-c", shell, "fixture", str(manager)],
+                                        env={**os.environ, "SCENARIO": scenario}, capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0, scenario)
+            self.assertIn("validation operationnelle en echec", subprocess.run(
+                ["bash", "-c", shell, "fixture", str(manager)], env={**os.environ, "SCENARIO": "stopped"},
+                capture_output=True, text=True).stderr)
+
+    def test_server_profile_binds_all_dn_and_san_fields(self):
+        for role in REMOTE.ROLE_SERVICES:
+            for service in REMOTE.ROLE_SERVICES[role]:
+                with self.subTest(role=role, service=service), tempfile.TemporaryDirectory() as directory:
+                    profile = Path(directory) / "entity.xml"
+                    PROFILES.render_entity(PROFILES.PROFILES / "entity-profile-template.xml", profile, 123, 456)
+                    tree = ET.parse(profile)
+                    subject = REMOTE.scoped_subject(role, "sensor-01", service)
+                    dns, ips = REMOTE.scoped_sans(role, "sensor-01", service, "192.0.2.20", "search.example.internal")
+                    REMOTE.bind_profile_identity(tree.getroot().find("object"), subject, dns, ips)
+                    tree.write(profile)
+                    values = PROFILES.profile_values(profile)
+                    dn = dict(part.split("=", 1) for part in subject.split(","))
+                    for field, names in ((5, [dn["CN"]]), (11, [dn["OU"]]), (12, [dn["O"]]),
+                                         (16, [dn["C"]]), (18, dns), (19, ips)):
+                        self.assertEqual(values["NUMBERARRAY"][field], str(len(names)))
+                        for slot, name in enumerate(names):
+                            index = field + slot * 100
+                            self.assertEqual(values[str(index)], name)
+                            self.assertEqual(values[str(10000 + index)], "true")
+                            self.assertEqual(values[str(20000 + index)], "true")
+                            self.assertEqual(values[str(30000 + index)], "false")
+
+    def test_fresh_role_skips_only_nonexistent_legacy_profile(self):
+        calls = []
+
+        def ejbca(*args):
+            calls.append(args)
+            if args[:2] == ("roles", "listroles"):
+                return ""
+            if args[:2] == ("roles", "changerule") and args[3].endswith("-enroll-v1/"):
+                raise RuntimeError(f"No resource with name '{args[3]}' is available")
+            return ""
+        with patch.object(REMOTE, "ejbca", side_effect=ejbca):
+            REMOTE.provision_role("collector", "sensor-01", "agent")
+        self.assertIn(("roles", "changerule", "Oculox Enrollment collector sensor-01",
+                       "/ra_functionality/edit_end_entity/", "DECLINE"), calls)
+        self.assertNotIn(("roles", "changerule", "Oculox Enrollment collector sensor-01",
+                          "/ra_functionality/edit_end_entity/", "ACCEPT"), calls)
+        with patch.object(REMOTE, "ejbca", side_effect=RuntimeError("database unavailable")):
+            with self.assertRaises(RuntimeError):
+                REMOTE.provision_role("collector", "sensor-01", "agent")
+
     def test_agent_renewal_restores_previous_files_after_install_error(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -82,6 +173,7 @@ class EnrollmentPolicyTests(unittest.TestCase):
             state.mkdir()
             bundle.mkdir()
             config = {"role": "collector", "identity": "sensor-01", "allowed_services": ["filebeat_client"],
+                      "end_entity_profile": REMOTE.collector_profile_name("sensor-01"),
                       "api_url": "https://core.example:18443/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll"}
             for name in ("agent.crt", "agent-ca.crt", "api-ca.crt", "service-ca.crt", "root.crt"):
                 (state / name).write_text("old " + name)
@@ -123,6 +215,7 @@ class EnrollmentPolicyTests(unittest.TestCase):
 
     def test_https_policy(self):
         base = {"role": "collector", "identity": "sensor-01", "allowed_services": ["filebeat_client"],
+                "end_entity_profile": REMOTE.collector_profile_name("sensor-01"),
                 "api_url": "https://core.example:18443/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll"}
         REMOTE.validate_agent_config(base)
         for url in ("http://core.example/enroll", "https://user:secret@core.example/enroll", "https://core.example/admin"):
@@ -130,6 +223,8 @@ class EnrollmentPolicyTests(unittest.TestCase):
                 REMOTE.validate_agent_config({**base, "api_url": url})
         with self.assertRaises(RuntimeError):
             REMOTE.validate_agent_config({**base, "allowed_services": ["web_server"]})
+        with self.assertRaises(RuntimeError):
+            REMOTE.validate_agent_config({**base, "end_entity_profile": "oculox-filebeat-client-enroll-v3"})
 
     def test_dns_separate_from_listener_ip(self):
         config = copy.deepcopy(RENDER.DEFAULT_CONFIG)
@@ -145,6 +240,22 @@ class EnrollmentPolicyTests(unittest.TestCase):
             config["endpoint"]["dns"] = dns
             with self.assertRaises(ValueError):
                 RENDER.validate(config)
+
+    def test_cluster_agent_profile_and_endpoint_binding(self):
+        services = list(REMOTE.ROLE_SERVICES["cluster"])
+        config = {"role": "cluster", "identity": "cluster-01", "allowed_services": services,
+                  "api_url": "https://core.example:18443/ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll",
+                  "endpoint_ip": "192.0.2.20", "endpoint_dns": "search.example.internal",
+                  "end_entity_profiles": {service: REMOTE.scoped_profile_name("cluster", "cluster-01", service)
+                                          for service in services}}
+        REMOTE.validate_agent_config(config)
+        self.assertEqual(REMOTE.scoped_sans("cluster", "cluster-01", "opensearch_endpoint",
+                                            config["endpoint_ip"], config["endpoint_dns"]),
+                         (["opensearch-endpoint", "search.example.internal"], ["192.0.2.20"]))
+        with self.assertRaises(RuntimeError):
+            REMOTE.validate_agent_config({**config, "end_entity_profiles": {}})
+        with self.assertRaises(ValueError):
+            REMOTE.validate_agent_config({**config, "endpoint_dns": "bad..domain"})
 
     def test_core_audit_excludes_nonactive_cluster_files(self):
         manifest = {"certificates": {"opensearch_node_1": {"zone": "opensearch"}, "filebeat_client": {}}}

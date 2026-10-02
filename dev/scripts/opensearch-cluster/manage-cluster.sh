@@ -207,6 +207,7 @@ ensure_ejbca_opensearch_pki() {
     exit 1
   }
   printf '%s\n' 'Enrolement PKI OpenSearch via EJBCA distant...'
+  "$PROJECT_DIR/oculox" pki agent-status --online
   for entry in "${entries[@]}"; do
     if [[ ! -s "$(python3 - "$PROJECT_DIR" "$entry" <<'PY'
 from pathlib import Path
@@ -227,7 +228,18 @@ PY
   install -d -m 0755 "$IDP_TRUST_DIR"
   if [[ ! -s "$IDP_TRUST_DIR/keycloak-ca.crt" ]]; then
     install -m 0644 "$PROJECT_DIR/dev/generated/pki/remote-agent/api-ca.crt" "$IDP_TRUST_DIR/keycloak-ca.crt"
-  elif ! cmp -s "$PROJECT_DIR/dev/generated/pki/remote-agent/api-ca.crt" "$IDP_TRUST_DIR/keycloak-ca.crt"; then
+  elif ! python3 - "$PROJECT_DIR" "$IDP_TRUST_DIR/keycloak-ca.crt" <<'PY'
+import importlib.util
+from pathlib import Path
+import sys
+root, trust = Path(sys.argv[1]), Path(sys.argv[2])
+spec = importlib.util.spec_from_file_location('oidc_trust', root / 'dev/scripts/opensearch-cluster/oidc-trust.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+if module.certificate_chain(root / 'dev/generated/pki/remote-agent/api-ca.crt') != module.certificate_chain(trust):
+    sys.exit(1)
+PY
+  then
     printf '%s\n' 'Confiance Keycloak obsolete: executer ./oculox cluster oidc-trust avant de reprendre.' >&2
     exit 1
   fi
@@ -401,6 +413,7 @@ install_cluster() {
   wait_for_cluster_green
   "$SCRIPT_DIR/apply-storage-policy.py" --env-file "$ENV_FILE"
   create_default_bundles
+  "$PROJECT_DIR/oculox" pki monitor install
   compose ps
   rm -rf -- "$candidate_dir"
   printf 'Cluster installé. Bundles clients : %s/client-bundles/{core,hedgehog}\n' "$GENERATED_DIR"

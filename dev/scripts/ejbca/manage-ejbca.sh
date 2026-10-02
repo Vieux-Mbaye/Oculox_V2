@@ -141,10 +141,12 @@ validate_runtime() {
     compose config --quiet
     validate_ca_plan
     if compose ps --services --status running | grep -qx ejbca; then
-        compose exec -T ejbca curl -kfsS https://127.0.0.1:8443/ejbca/publicweb/healthcheck/ejbcahealth >/dev/null
-        printf 'EJBCA repond en HTTPS dans le conteneur.\n'
+        compose exec -T ejbca-db sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mariadb --connect-timeout=5 -h 127.0.0.1 -u "$MYSQL_USER" "$MYSQL_DATABASE" -N -e "SELECT 1"' >/dev/null
+        compose exec -T ejbca curl --max-time 15 -kfsS https://127.0.0.1:8443/ejbca/publicweb/healthcheck/ejbcahealth >/dev/null
+        printf 'EJBCA et sa base repondent; controle de sante applicatif valide.\n'
     else
-        printf 'EJBCA n est pas demarre; compose et plan CA valides.\n'
+        printf 'EJBCA n est pas demarre; validation operationnelle en echec.\n' >&2
+        return 1
     fi
 }
 
@@ -250,6 +252,9 @@ create_ca_plan() {
         "CN=Oculox OpenSearch CA,OU=Oculox OpenSearch PKI,O=Oculox,C=SN" \
         1825 \
         "$root_id"
+    # Renewals create a new end entity with a new VM-local key. Identity remains
+    # constrained by immutable DN/SAN fields in the role-scoped profile.
+    set_ca_field "Oculox Internal Services CA" "doEnforceUniqueDistinguishedName" "false"
     set_ca_field "Oculox OpenSearch CA" "doEnforceUniqueDistinguishedName" "false"
 
     printf 'CA Oculox presentes dans EJBCA :\n'

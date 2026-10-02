@@ -34,7 +34,11 @@ def main() -> None:
     assert "client-bundles/$role" in manager
     assert "wait_for_cluster_green" in manager
     assert 'remote-agent/api-ca.crt' in manager
+    assert '"$PROJECT_DIR/oculox" pki agent-status --online' in manager
+    assert 'module.certificate_chain' in manager
     assert 'oidc-trust.py" verify --if-configured' in manager
+    assert './oculox pki monitor install' in launcher
+    assert '"$PROJECT_DIR/oculox" pki monitor install' in manager
     guide = (PROJECT_DIR / "dev/ejbca/docs/installation_3_vm_et_bundles.md").read_text()
     for command in ("keycloak provision", "keycloak activate-dashboards", "cluster configure-oidc",
                     "cluster verify-oidc", "test_live_opensearch_oidc.py --run-live"):

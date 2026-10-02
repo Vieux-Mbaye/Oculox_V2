@@ -108,6 +108,8 @@ mais il n'a pas encore ete valide depuis trois VM vierges.** La reference
 operative est [installation trois VM et bundles](dev/ejbca/docs/installation_3_vm_et_bundles.md).
 Les corrections et preuves de test sont dans le
 [rapport de livraison EJBCA](dev/ejbca/docs/livraison_ejbca_2026-09-30.md).
+La [recette avant VM](dev/ejbca/docs/recette_avant_vm_2026-10-01.md)
+consigne les derniers controles de securite et leurs limites.
 Les exemples ci-dessous ne remplacent pas ses controles ni ses etapes de
 confiance initiale. Ne pas publier ce deploiement comme qualifie en production
 avant l'essai complet sur les trois VM.
@@ -137,6 +139,17 @@ necessite une reemission si l'IP change; un DNS stable dans les SAN permet de
 changer l'IP via DNS sans reemettre pour ce seul changement.
 
 ### Premiere Etape Obligatoire : Core Et EJBCA
+
+Sur les trois VM, cloner exactement la meme revision de `main` et comparer
+`git rev-parse HEAD`. La recette pas a pas, y compris les dependances et la
+confiance initiale de la Root CA, est dans
+[Installation trois VM](dev/ejbca/docs/installation_3_vm_et_bundles.md).
+
+```bash
+git clone --branch main https://github.com/Vieux-Mbaye/Oculox_V2.git ~/Oculox_V2
+cd ~/Oculox_V2
+git rev-parse HEAD
+```
 
 Sur la VM Core :
 
@@ -172,7 +185,8 @@ Sur la VM cluster :
 ```bash
 cd ~/Oculox_V2
 ./oculox pki agent-init --role cluster --identity cluster-01
-# Sur Core, autoriser la CSR publique avec ./oculox pki-ca authorize-agent.
+# Sur Core, autoriser la CSR publique avec ./oculox pki-ca authorize-agent
+# --endpoint-ip <IP_LOCALE_CLUSTER> (et --endpoint-dns si un DNS est utilise).
 # Revenir ici avec le bundle public et l'empreinte Root CA verifiee.
 ./oculox pki agent-install --bundle ~/cluster-01-enrollment --root-sha256 <EMPREINTE>
 cp dev/config/opensearch-cluster/cluster.yml.example ~/oculox-cluster.yml

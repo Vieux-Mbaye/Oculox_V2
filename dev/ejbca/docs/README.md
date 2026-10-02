@@ -1,6 +1,8 @@
 # Documentation EJBCA Oculox
 
 La procedure de reference est [Installation trois VM](installation_3_vm_et_bundles.md).
+Les preuves de la derniere verification figurent dans
+[Recette avant VM](recette_avant_vm_2026-10-01.md).
 Elle couvre le bootstrap, les agents mTLS, Core, Cluster, Collecteur et
 l'exploitation. Les commandes correspondent aux scripts du depot.
 

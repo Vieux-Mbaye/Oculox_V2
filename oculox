@@ -508,6 +508,7 @@ continue_install() {
     read_state
     compose --profile "$PROFILE" pull
     official_start
+    ./oculox pki monitor install
     ./oculox status
 }
 

@@ -53,6 +53,15 @@ def pki_audit_required() -> Check:
     return Check("pki", "FAIL", result.stderr.strip() or result.stdout.strip() or "audit PKI en échec")
 
 
+def ejbca_required() -> list[Check]:
+    if not (PROJECT_DIR / "dev/ejbca/generated/ejbca.env").is_file():
+        return []
+    result = run(["./oculox", "pki-ca", "validate"])
+    if result.returncode == 0:
+        return [Check("ejbca", "OK", "autorité centrale et base disponibles")]
+    return [Check("ejbca", "FAIL", result.stderr.strip() or result.stdout.strip() or "autorité centrale indisponible")]
+
+
 def public_url(path: str = "/") -> str:
     config = PROJECT_DIR / "dev/generated/public-endpoint.env"
     if config.is_file():
@@ -144,6 +153,8 @@ def main() -> int:
     scopes = mapping.keys() if args.scope == "all" else (args.scope,)
     for scope in scopes:
         checks.extend(mapping[scope]())
+    if args.scope == "all":
+        checks.extend(ejbca_required())
     return print_checks(checks)
 
 

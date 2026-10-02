@@ -20,6 +20,24 @@ LIFECYCLE_SPEC.loader.exec_module(LIFECYCLE)
 
 
 class ServiceValidationTests(unittest.TestCase):
+    def test_global_validation_fails_when_configured_ejbca_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = root / "dev/ejbca/generated/ejbca.env"
+            env.parent.mkdir(parents=True)
+            env.write_text("OCULOX_EJBCA_HTTPS_PORT=18443\n")
+            failure = subprocess.CompletedProcess([], 22, "", "HTTP 500")
+            with patch.object(MODULE, "PROJECT_DIR", root), patch.object(MODULE, "run", return_value=failure):
+                checks = MODULE.ejbca_required()
+            self.assertEqual(checks[0].status, "FAIL")
+            self.assertIn("HTTP 500", checks[0].detail)
+
+    def test_global_validation_skips_ejbca_when_external_pki_is_used(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(MODULE, "PROJECT_DIR", Path(directory)), patch.object(MODULE, "run") as run:
+                self.assertEqual(MODULE.ejbca_required(), [])
+            run.assert_not_called()
+
     def test_first_certificate_install_does_not_require_the_rest_of_the_platform(self):
         with tempfile.TemporaryDirectory() as directory:
             cert = Path(directory) / "ca.crt"

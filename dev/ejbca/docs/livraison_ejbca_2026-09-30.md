@@ -5,6 +5,11 @@
 > identifiee et corrigee. Lire [la recette corrective OIDC](correction_oidc_2026-10-01.md)
 > pour les preuves ajoutees et les commandes VM neuves.
 
+> Mise a jour du 1 octobre : les sources initiales ont ete publiees sur
+> GitHub `main` au commit `7f26993c`. Les corrections ulterieures doivent
+> etre verifiees avec `git rev-parse HEAD` sur le clone : ce rapport historique
+> ne prouve pas qu'une modification locale est deja publiee.
+
 Date : 30 septembre 2026. Procedure de reference :
 [Installation trois VM](installation_3_vm_et_bundles.md).
 
@@ -110,9 +115,9 @@ et pret pour cette recette, mais la qualification production exige ces preuves.
 
 ## Sources et sauvegardes
 
-Le travail reste dans l'arbre local, avec les changements preexistants preserves.
-Aucun commit ni push n'a ete fait automatiquement. Un clone distant ne
-contient donc pas encore ces ajouts tant qu'ils n'ont pas ete publies.
+Les sources initiales sont publiees sur GitHub. Pour toute correction
+ulterieure, verifier la revision distante avant de lancer la recette VM ;
+une modification locale non poussee n'est pas presente dans un clone.
 
 Le script suivant produit une archive des sources courantes, avec un manifeste
 SHA-256 par fichier, sans Git interne, secrets locaux ou donnees generees :
@@ -121,8 +126,7 @@ SHA-256 par fichier, sans Git interne, secrets locaux ou donnees generees :
 python3 dev/scripts/build-installation-source.py --output <NOUVELLE_ARCHIVE_HORS_DEPOT>.tar.gz
 ```
 
-Avant les VM, employer cette archive verifiee ou publier les changements
-revus dans le depot voulu. L'archive permet les installateurs et les tests de
+Avant les VM, employer la revision GitHub verifiee. L'archive permet les installateurs et les tests de
 sources; `./oculox validate` verifie aussi l'historique Git et s'execute donc
 dans un clone Git contenant ces sources. Les archives de sauvegarde EJBCA et
 leurs phrases de passe ne font jamais partie de l'archive des sources.
